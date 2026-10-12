@@ -2,7 +2,7 @@
 work: KF-004-p3-templates
 phase: P3 — Templates
 parent_plan: kuan-workbench/work/KF-001-plan/plan.md
-status: in progress
+status: done — awaiting Gate P3
 ---
 # P3 — Templates
 
@@ -197,12 +197,12 @@ C11a. **Wheel** (amends C11): also contains `kuanflow_cli/_content/VERSION`,
 | ID | Role | Files | Deps | Status |
 |---|---|---|---|---|
 | T3.0 | Coordinator | this plan (C23–C36, C11a); removed stale P1 agent worktrees | P2 | [x] |
-| T3.1 | Test Eng | `tests/answers/*.yml`, `cli/tests/template/test_render_project.py`, `cli/tests/template/test_render_knowledge.py`, `cli/tests/template/test_blocks.py`, `cli/tests/test_engine_assemble.py`, `tests/check_schema.py`, `tests/test_check_schema.py`, `tests/bats/stale-wiki-check.bats`, `tests/test_packaging.py` (C11a only) | C23–C36 | [ ] |
-| T3.2 | CLI Eng | `cli/src/kuanflow_cli/engine.py`, `pyproject.toml` (force-include of `VERSION` only) | T3.1 | [ ] |
-| T3.3 | Template Eng | `templates/project/copier.yml`, `templates/project/template/**`, `templates/project/blocks/*.jinja` | T3.1 | [ ] |
-| T3.4 | Template Eng | `templates/project/schema/config.schema.json` | T3.1 | [ ] |
-| T3.5 | Template Eng (knowledge) | `templates/knowledge-repo/**` | T3.1 | [ ] |
-| T3.6 | Coordinator | `Makefile` (check_schema step), CHANGELOG, VERSION `0.3.0-dev` | all | [ ] |
+| T3.1 | Test Eng | `tests/answers/*.yml`, `cli/tests/template/test_render_project.py`, `cli/tests/template/test_render_knowledge.py`, `cli/tests/template/test_blocks.py`, `cli/tests/test_engine_assemble.py`, `tests/check_schema.py`, `tests/test_check_schema.py`, `tests/bats/stale-wiki-check.bats`, `tests/test_packaging.py` (C11a only) | C23–C36 | [x] |
+| T3.2 | CLI Eng | `cli/src/kuanflow_cli/engine.py`, `pyproject.toml` (force-include of `VERSION` only) | T3.1 | [x] |
+| T3.3 | Template Eng | `templates/project/copier.yml`, `templates/project/template/**`, `templates/project/blocks/*.jinja` | T3.1 | [x] |
+| T3.4 | Template Eng | `templates/project/schema/config.schema.json` | T3.1 | [x] |
+| T3.5 | Template Eng (knowledge) | `templates/knowledge-repo/**` | T3.1 | [x] |
+| T3.6 | Coordinator | `Makefile` (check_schema step), CHANGELOG, VERSION `0.3.0-dev` | all | [x] |
 
 ## Fix round 1 (after review FAIL — see review.md F1–F7)
 
@@ -227,8 +227,8 @@ C34a. `stale-wiki-check.sh` does not import modules from the working directory (
 
 | ID | Role | Files | Status |
 |---|---|---|---|
-| FX1.0 | Test Eng | `cli/tests/test_engine_assemble.py` (C24a, unknown-template keeps dest), `cli/tests/template/test_render_project.py` (C26a, C28a, C28b), `cli/tests/template/test_render_knowledge.py` (C31a, C32a), `tests/bats/stale-wiki-check.bats` (C34a) | [ ] |
-| FX1.1 | Template Eng | `templates/project/copier.yml`, `templates/project/template/.kuanflow/config.yaml.jinja`, `templates/knowledge-repo/template/.gitignore` (+ `copier.yml` if needed) | [ ] |
+| FX1.0 | Test Eng | `cli/tests/test_engine_assemble.py` (C24a, unknown-template keeps dest), `cli/tests/template/test_render_project.py` (C26a, C28a, C28b), `cli/tests/template/test_render_knowledge.py` (C31a, C32a), `tests/bats/stale-wiki-check.bats` (C34a) | [x] |
+| FX1.1 | Template Eng | `templates/project/copier.yml`, `templates/project/template/.kuanflow/config.yaml.jinja`, `templates/knowledge-repo/template/.gitignore` (+ `copier.yml` if needed) | [x] |
 
 Carried to P4/P6 (review F8, no P3 change): render over an existing different file raises
 `InteractiveSessionError` (P4 pre-check/overwrite); `.worktreeinclude` block only when `use_orca`; empty
@@ -239,7 +239,12 @@ Carried to P4/P6 (review F8, no P3 change): render over an existing different fi
 index + stale-wiki bats green; RED of T3.1 recorded; adversarial review PASS.
 
 ## Evidence log
-- (fill in)
+- RED (4e6ddba): pytest `40 failed, 15 passed, 234 errors`; bats stale-wiki-check `20 not ok`.
+- GREEN (fddc5a5): `make verify` exit 0 — `1053 passed`, bats `1..138`, check_schema clean.
+- Review (review.md): FAIL — 59 mutations, 53 killed; F1–F4 med (git env untested, `debug` merge conflicts,
+  knowledge cache not ignored, list answers split into characters), F5–F7 low.
+- Fix round 1: RED (d0efa69) `32 failed, 1086 passed`; GREEN (dda708d) `make verify` exit 0 — `1118 passed`,
+  bats `1..139`. Re-review PASS: F1–F7 closed, 27/30 new mutants killed; R1–R4 low/info → Q-32.
 
 ## Decisions log
 - D-P3-1: `lint_cmd` stack defaults (Q-11 adds the question; PKG gives no defaults): maven `spotless:check` (PKG
@@ -253,5 +258,15 @@ index + stale-wiki bats green; RED of T3.1 recorded; adversarial review PASS.
 - D-P3-5: knowledge-repo uses the same engine and cache path (`.kuanflow/cache/template-repo`), so
   `kuanflow upgrade` can treat it like a project later.
 
+## DoD (phase exit)
+- [x] `make verify` exit 0 (pytest 1118, bats 139, check_skills, check_schema, check_versions).
+- [x] RED recorded for T3.1 and FX1.0; GREEN recorded; tests unchanged between RED and GREEN commits.
+- [x] Review FAIL → fix round 1 → re-review PASS (review.md).
+- [x] VERSION `0.3.0-dev`; `check_versions.py --tag v0.3.0-dev` exit 0; tag `v0.3.0-dev` (local, not pushed).
+- [ ] Gate P3: Q-32..Q-34 (questions.md).
+
 ## Status (update before any context reset)
-- T3.0 done. Next: T3.1 (Test Eng sub-agent), RED commit.
+- P3 DONE, awaiting Gate P3 (questions.md Q-32..Q-34). Tag `v0.3.0-dev` local only.
+- Stale P1 agent worktrees removed at phase start. Sub-agents used: Test Eng ×2, CLI Eng, Template Eng ×3,
+  Adversarial Reviewer (2 rounds).
+- NEXT (only when the user asks): P4 (KF-005) CLI core — remember review F8 carry-overs above.

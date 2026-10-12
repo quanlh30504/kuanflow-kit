@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Project template (`templates/project/`, Copier ≥ 9.18.2): renders `.kuanflow/config.yaml` (validated by
+  `templates/project/schema/config.schema.json`, JSON Schema 2020-12), `.kuanflow/README.md`, the guard scripts
+  (copied from the plugin, executable), `kuan-workbench/` skeleton, `docs/adr/0000-template.md`,
+  `docs/runbooks/README.md` and an optional `orca.yaml`. Stack defaults for `java-maven`, `java-gradle`, `node`,
+  `python`, `other`. The config layout keeps `kuanflow upgrade` 3-way merges conflict-free for edits of
+  different keys; list answers are validated.
+- Block bodies for the CLI patchers: `AGENTS.md`, `CLAUDE.md`, `.gitignore` (per `artifacts.commit`),
+  PR template and `.worktreeinclude`.
+- Knowledge-repo template (`templates/knowledge-repo/`): postmortem/runbook skeleton, taxonomy, postmortem and
+  ADR templates, `check-frontmatter.py`, `build-index.py` (level-1 JSON index), `stale-wiki-check.sh` and a CI
+  workflow.
+- `kuanflow_cli.engine`: builds a reproducible synthetic template git repo per version and renders it with
+  Copier (`render`, `assemble_template`); `VERSION` ships in the wheel.
+- `tests/check_schema.py` in `make verify`: validates the schema and the rendered config of every stack.
+
 - Guard hooks in `plugins/kuanflow/scripts/`: `guard-bash.sh` blocks force/direct pushes to main, commands
   against production clusters and datastores, destructive `rm`/SQL, reading `.env` files (also inside
   `bash -c`/`eval`), and project patterns from `guard.extra_block_patterns`; `guard-protected-paths.sh` blocks

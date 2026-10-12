@@ -143,3 +143,85 @@ P3 pytest subset, `bats tests/bats/stale-wiki-check.bats`, `tests/check_schema.p
 5. Content that contradicts PKG/PB, or non-English text: checked, none found (rows 10, 11).
 
 ## Verdict: FAIL — fix F1–F4 (F5–F7 are cheap to fold into the same round), then re-review.
+
+---
+
+# Re-review — fix round 1 — `da2c4fb..dda708d`
+
+Reviewer: Adversarial Reviewer (sub-agent). Same method and oracle as before: one mutant at a time in a scratch
+clone at dda708d (`review-p3/mutate2.py`, `run2.sh`). Nothing in the repo changed except this section.
+
+| # | Check | Result | Evidence |
+|---|---|---|---|
+| 1 | Verify suite | PASS | `make verify` exit 0: `1118 passed`, bats `1..139`, all checkers silent. |
+| 2 | RED before GREEN | PASS | Re-run at d0efa69 in a scratch clone: `32 failed, 1086 passed` (matches the commit). The C34a bats case was already green at RED (`-I` was already there); it is a regression test and kills M55. |
+| 3 | Tests changed after RED | PASS | `git diff d0efa69 dda708d` touches only `templates/**` (3 files). |
+| 4 | Mutation (old survivors + new) | PASS | 31 mutants: all 6 old survivors are killed. 21 of the 25 new mutants are killed; N06 is equivalent; N11, N12, N15 and N16 survive (low, R1/R2). Score **27/30 = 90 %** (excluding the equivalent N06). |
+| 5 | 3-way update probe (real `run_update`, `conflict="inline"`) | PASS | **A**: `commands.verify` local vs `commands.build` upstream → clean. **B**: `debug.allow_prod_log_access` vs `debug.budget.max_turns_total` → clean (was a conflict). **C**: `debug.services` vs `budget` → clean (was a conflict). **D** (extra): `project.name` local vs `project.stack` upstream → conflict (R3, low). |
+| 6 | `q()` macro by reading + probe | PASS | Details below. |
+
+### F1–F7 status
+
+| Finding | Status | Evidence |
+|---|---|---|
+| F1 `GIT_*` env scrub untested | **closed** (C24a) | `test_c24a_inherited_git_env_ignored` sets `GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`, `GIT_OBJECT_DIRECTORY` and `GIT_COMMON_DIR`; it compares the victim's HEAD, tags, refs, status and index bytes. M17 killed. |
+| F2 `debug` merge conflicts | **closed** (C28a) | `budget` is now a block mapping, with blank lines between every key of `debug` and `debug.budget`. `test_c28a_three_way_update_merges` runs a real update for both orders of each adjacent leaf pair in `commands`, `paths` and `debug`. Probes B and C are clean. N18–N21 killed. |
+| F3 knowledge cache not ignored | **closed** (C31a) | `template/.gitignore` has `.kuanflow/cache/` and `index.json`. The test renders into a fresh repo and checks that `git add -A` stages no gitlink and nothing under `.kuanflow/`. N22–N24 killed. |
+| F4 scalar list answers | **closed** (C26a) | `validator:` on both questions rejects a string, a mapping, an int/null/list item, and an int. Probe: `None` and `7` are rejected too. N01–N05 killed. |
+| F5 test gaps (M19, M29, M30, M45) | **closed** | M19 → `test_c24_unknown_template_leaves_existing_dest`. M29 and M30 → `test_c28b_every_string_answer_round_trips[quotes]`. M45 → `status-published`. N25 (case-insensitive status) killed. |
+| F6 `python3 -I` untested | **closed** (C34a) | The bats case plants `yaml.py` and `re.py` in cwd, on `PYTHONPATH` and in the wiki dir. M55 killed. |
+| F7 non-ASCII escaped | **closed** (C28b) | `name: "py-svc: β #1"` is now literal. N13 and N17 killed. |
+
+### Round-2 mutants
+
+| ID | Mutation | Result |
+|---|---|---|
+| M17, M19, M29, M30, M45, M55 | old survivors | all killed (tests listed above) |
+| N01/N02 | drop the `protected_paths` / `services` validator | killed (`test_c26a_list_answers_validated[string-*]`) |
+| N03/N04/N05 | validator without `is mapping` / `is string` / the item-type check | killed |
+| N06 | validator without `is not sequence` | **equivalent**: `7`, `None`, `True`, `1.5` are still rejected (`ValueError`, with a cruder message such as "'int' object is not iterable"). |
+| N07/N08/N09/N10/N14 | `q()` leaves U+2028 / U+2029 / C1+DEL / NEL raw, or escapes nothing | killed (`…round_trips[unicode]`) |
+| **N11** | **`q()` leaves U+FEFF, U+FFFE, U+FFFF raw** | **survived** (R1) |
+| **N12** | **`q()` surrogate clause dropped** | **survived** (R1) |
+| N13/N17 | `ensure_ascii` back on / `project_name` via `to_json` | killed (`test_c28b_non_ascii_written_literally`) |
+| **N15/N16** | **`protected_paths` / `services` items via `to_json` (`\uXXXX` again)** | **survived** (R2) |
+| N18–N21 | remove a blank line in `debug` / `budget`, `budget` back to a flow mapping | killed (`test_c28a_debug_layout`, `test_c28a_three_way_update_merges`) |
+| N22–N24 | knowledge `.gitignore` without `.kuanflow/cache/` / `index.json` / slash | killed (`test_c31a_gitignore`) |
+| N25 | `status` compared case-insensitively | killed (`status-Approved`) |
+
+### `q()` macro review
+
+The macro iterates over the characters of `to_json(ensure_ascii=False)`, which already escapes `"`, `\` and C0
+controls with JSON escapes that YAML double-quoted strings accept. It re-escapes DEL/C1 (incl. U+0085 NEL),
+surrogates, U+2028/U+2029, U+FEFF/U+FFFE/U+FFFF through `to_json` (`\uXXXX`). Jinja string literals go through
+`unicode-escape`, so `"\x7f"` and `" "` in the template are the real characters. The leading `{#-`/`{%-`
+trims leave no stray blank line before `schema_version`. Probe (`review-p3/qedge.py`, render + `yaml.safe_load`
+of config and answers):
+
+- `""` → `name: ""`. Round-trips.
+- Non-string answers: Copier casts the `str` questions first. `123`, `1.5`, `True` → `"123"`, `"1.5"`, `"True"`
+  (strings, quoted, never re-typed). `None` → Copier `InvalidTypeError`. A list → `ValueError`. So `q()` only ever
+  receives strings. A non-SemVer `kuanflow_version` (e.g. `1`) renders as `"1"` and is caught by the schema, as
+  before.
+- All 32 C0 controls, DEL + all C1, U+2028/2029, BOM, U+FFFE/FFFF, a lone surrogate (`\ud800`), `\\u2028` (literal
+  backslash-u), emoji/astral, U+FDD0 and U+1FFFE: all round-trip exactly, and the config is one physical line per
+  key.
+
+## Remaining findings (all low; none blocks the phase)
+
+- **R1 — low — `HOSTILE["unicode"]` does not contain U+FFFE/U+FFFF or a lone surrogate (N11, N12 survive).**
+  PyYAML rejects raw U+FFFE/U+FFFF, and a lone surrogate is reachable from a non-UTF-8 argv byte via
+  surrogateescape (`\udcff`). *Fix:* add `﻿￾￿\udcff` to `HOSTILE["unicode"]` and to the
+  `line_breaks_and_controls_stay_escaped` list.
+- **R2 — low — "non-ASCII written literally" is tested only for `project.name` (N15, N16 survive).**
+  *Fix:* in `test_c28b_non_ascii_written_literally`, also render `protected_paths: ["tài-liệu/**"]` and
+  `services: ["dịch-vụ"]` and assert both appear literally.
+- **R3 — low — `project.name` and `project.stack` are still adjacent (probe D → conflict).** This is rarely hit,
+  because both normally come from answers. *Fix (optional):* add a blank line between them, and add `project` to
+  the C28a merge cases.
+- **R4 — info — invisible / bidi format characters (U+202E, U+200B, other Unicode category Cf) are written raw.**
+  They round-trip, but they can make a `commands.*` value in `config.yaml` look different from what runs (a
+  Trojan-Source-style spoof). The person running `init` controls these values, so the risk is low. *Option:* also
+  escape category `Cf` in `q()`.
+
+## Verdict: PASS — F1–F7 closed; R1–R3 are optional cheap test/layout improvements, R4 is informational.
