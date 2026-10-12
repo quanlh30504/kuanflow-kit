@@ -18,5 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   non-empty `description`.
 - `make verify` and a GitHub Actions CI workflow that runs it on Python 3.11 and 3.13 for every push
   and pull request; every `uv run` uses `--locked`, so lockfile drift fails the build.
-- `cli/semver_pep440.py`: the single SemVer -> PEP 440 converter, shared by the package build and
-  `tests/check_versions.py`, so the release gate only accepts versions the package can build.
+- `kuanflow_cli/semver.py`: the single SemVer -> PEP 440 converter, shared by the package build,
+  `tests/check_versions.py` and the CLI, so the release gate only accepts versions the package can build.
+- Python project at the repository root: the wheel bundles `plugins/kuanflow` and `templates`, and
+  the CLI installs with `uvx --from "git+https://github.com/<org>/kuanflow.git@vX.Y.Z" kuanflow`.

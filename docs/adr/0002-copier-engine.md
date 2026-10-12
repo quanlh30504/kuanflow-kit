@@ -1,6 +1,6 @@
 # ADR-0002: Copier as the render/3-way-merge engine via a synthetic template repo
 
-- **Status:** Proposed
+- **Status:** Accepted (Gate P1, 2026-10-12)
 - **Date:** 2026-10-12
 - **Spike:** S1 (resolves Q-09; informs Q-06, Q-10, Q-22)
 

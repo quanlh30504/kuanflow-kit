@@ -18,13 +18,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 PLUGIN_JSON = Path("plugins/kuanflow/.claude-plugin/plugin.json")
 MARKETPLACE_JSON = Path(".claude-plugin/marketplace.json")
-CLI_PYPROJECT = Path("cli/pyproject.toml")
+CLI_PYPROJECT = Path("pyproject.toml")
 
 
 def _load_semver() -> ModuleType:
-    # The one SemVer -> PEP 440 converter (contract C9), shared with cli/hatch_build.py.
-    path = REPO_ROOT / "cli" / "semver_pep440.py"
-    spec = importlib.util.spec_from_file_location("_kuanflow_semver_pep440", path)
+    # The one SemVer -> PEP 440 converter (contract C9r), shared with hatch_build.py.
+    path = REPO_ROOT / "cli" / "src" / "kuanflow_cli" / "semver.py"
+    spec = importlib.util.spec_from_file_location("_kuanflow_check_semver", path)
     if spec is None or spec.loader is None:
         raise ImportError(f"cannot load {path}")
     module = importlib.util.module_from_spec(spec)
@@ -32,7 +32,7 @@ def _load_semver() -> ModuleType:
     return module
 
 
-semver_pep440 = _load_semver()
+semver = _load_semver()
 
 
 class VersionError(ValueError):
@@ -41,7 +41,7 @@ class VersionError(ValueError):
 
 def semver_to_pep440(version: str) -> str:
     try:
-        return semver_pep440.to_pep440(version)
+        return semver.to_pep440(version)
     except ValueError as exc:
         raise VersionError(str(exc)) from exc
 
@@ -49,7 +49,7 @@ def semver_to_pep440(version: str) -> str:
 def _normalise_pep440(value: str) -> str:
     # A static pyproject version may be written in SemVer or PEP 440 form.
     value = value.strip()
-    if semver_pep440.is_semver(value):
+    if semver.is_semver(value):
         return semver_to_pep440(value)
     return value.lower()
 
@@ -62,7 +62,7 @@ def read_version(root: Path) -> str:
     version = text[:-1] if text.endswith("\n") else text
     if not version or "\n" in version or "\r" in version:
         raise VersionError("VERSION: must be exactly one line")
-    if not semver_pep440.is_semver(version):
+    if not semver.is_semver(version):
         raise VersionError(f"VERSION: not a valid SemVer: {version!r}")
     return version
 

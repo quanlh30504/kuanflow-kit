@@ -1,6 +1,6 @@
 # ADR-0001: Foundations
 
-- Status: Proposed
+- Status: Accepted (Gate P1, 2026-10-12) — decision 3 revised at the Gate (R2: root `pyproject.toml`)
 - Date: 2026-10-12
 - Context: phase P1 (KF-002), spike S2; answers Q-02, Q-03, Q-06 in
   `kuan-workbench/work/KF-000-analysis/questions.md`.
@@ -25,36 +25,66 @@ command that assumes a root `pyproject.toml`. A wheel built from `cli/` does not
    | `X.Y.Z-alpha.N` (`-a.N`) / `-beta.N` (`-b.N`) / `-rc.N` | `X.Y.ZaN` / `X.Y.ZbN` / `X.Y.ZrcN` |
 
    No leading zeros in `X`, `Y`, `Z` or `N`. Build metadata (`+…`), bare `-rc`/`-alpha`/`-beta` and any other
-   pre-release form are rejected. The table lives in exactly one place, `cli/semver_pep440.py` (stdlib only,
-   contract C9); both the build and the release gate `tests/check_versions.py` load it by file path, so they
+   pre-release form are rejected. The table lives in exactly one place, `cli/src/kuanflow_cli/semver.py` (stdlib only,
+   contract C9r, also used by the CLI at runtime for version checks); both the build and the release gate `tests/check_versions.py` load it by file path, so they
    cannot disagree. Implementation: a hatchling **metadata hook**
-   (`cli/hatch_build.py`, `[tool.hatch.metadata.hooks.custom]`). At runtime `kuanflow_cli.__version__` =
+   (root `hatch_build.py`, `[tool.hatch.metadata.hooks.custom]`) that reads `<project root>/VERSION` only. At runtime `kuanflow_cli.__version__` =
    `importlib.metadata.version("kuanflow-cli")`, so `kuanflow --version` always reports the installed metadata.
-   `[tool.uv] cache-keys` includes `../VERSION`, so `uv run` rebuilds the editable install after a bump.
-3. **`pyproject.toml` stays in `cli/`; content is bundled into the wheel; install URL uses
-   `#subdirectory=cli`** (Q-06, option A). A hatchling **build hook** (same file) force-includes:
-   - wheel: `../plugins/kuanflow` -> `kuanflow_cli/_content/plugins/kuanflow`,
-     `../templates` -> `kuanflow_cli/_content/templates`;
-   - sdist: `../VERSION`, `../plugins/kuanflow`, `../templates` copied to the sdist root, so a wheel built from the
-     sdist (what `uv build` does) is identical. The hooks look for `VERSION` in `<cli>` first (unpacked sdist), then `<cli>/..` (repo checkout), so a stray
-     `VERSION` above an unpacked sdist is ignored.
-   - editable wheel: nothing bundled (content is read from the checkout).
+   `[tool.uv] cache-keys` includes `VERSION`, so `uv run` rebuilds the editable install after a bump.
+3. **Python project at the repo root; content is bundled into the wheel declaratively; plain git install URL**
+   (Q-06, revised at Gate P1 as R2). `pyproject.toml` and `uv.lock` live at the repo root; the code stays in
+   `cli/src/kuanflow_cli` (`[tool.hatch.build.targets.wheel] packages`). Hatchling's built-in `force-include`
+   maps `plugins/kuanflow` -> `kuanflow_cli/_content/plugins/kuanflow` and `templates` ->
+   `kuanflow_cli/_content/templates`; the sdist `include` list carries the same sources plus `VERSION` and
+   `hatch_build.py`, so a wheel built from the sdist is identical (guarded by `tests/test_packaging.py`, C11).
+   Editable installs bundle nothing (content is read from the checkout).
 
-   Install command: `uvx --from "git+https://github.com/<org>/kuanflow.git@vX.Y.Z#subdirectory=cli" kuanflow`
-   (or `uv tool install` with the same spec). README/PKG §9.2 must use this form.
+   Install command: `uvx --from "git+https://github.com/<org>/kuanflow.git@vX.Y.Z" kuanflow`
+   (or `uv tool install` with the same spec), as in PKG §9.2.
+
+   Rejected: (a) the original option A — `pyproject.toml` in `cli/` with a custom build hook that copied `../`
+   content into wheel and sdist and looked for `VERSION` in two places. ~60 lines of build code, the source of
+   review finding F5, and a `#subdirectory=cli` install URL. (b) hatchling's built-in `regex` version source
+   instead of the metadata hook: it writes the raw SemVer into METADATA (`Version: 1.2.3-rc.1`, not normalised)
+   and builds `01.2.3` and `1.2.3-rc`, re-opening F1. (c) Fetching content from git at runtime: needs network on
+   first use and makes version pinning harder.
 4. **Runtime content lookup** (documented here, implemented later): first
    `importlib.resources.files("kuanflow_cli") / "_content"` (wheel / uvx / tool install); if absent, the repo
    checkout `Path(kuanflow_cli.__file__).parents[3]` (`src/kuanflow_cli` -> `cli/src` -> `cli` -> repo root), which
-   holds `plugins/kuanflow` and `templates` (editable / `uv run --project cli`). A single locator function owns
+   holds `plugins/kuanflow` and `templates` (editable / `uv run`). A single locator function owns
    this; nothing else hard-codes paths.
 5. **Old-version content for upgrades** (decided, implemented in P6): the 3-way merge base is fetched from
    `manifest.source` at the old tag into `.kuanflow/cache/sources/<ver>/` (git; `file://` in tests). The wheel
    only ever carries the *current* version's content.
 6. **Root tool config**: `ruff.toml` (py311, line-length 100, rules E/F/I/UP/B; Markdown code blocks are not
    formatted) and `pytest.ini` (`testpaths = cli/tests tests`). Everything runs from the repo root via
-   `uv run --project cli ...`.
+   `uv run --locked ...`.
 
-## Evidence (S2)
+## Evidence (R2, Gate P1 revision — supersedes the packaging parts of S2 below)
+
+Scratch clone, root `pyproject.toml` as in decision 3, temporary `templates/project/MARKER.txt`:
+
+```
+$ uv build -o dist          # sdist, then wheel from sdist
+kuanflow_cli-0.1.0.dev0-py3-none-any.whl  kuanflow_cli-0.1.0.dev0.tar.gz
+$ unzip -l dist/*.whl | grep MARKER
+kuanflow_cli/_content/templates/project/MARKER.txt
+$ uv run kuanflow --version                                   # editable
+kuanflow 0.1.0.dev0
+$ printf '0.2.0-rc.1\n' > VERSION && uv run kuanflow --version   # cache-key rebuild
+kuanflow 0.2.0rc1
+$ uvx --from "git+file://<scratch>/r@vtest" kuanflow --version  # no #subdirectory
+kuanflow 0.1.0.dev0
+```
+
+Built-in `regex` version source (rejected, decision 3b): `1.2.3-rc.1` -> wheel `1.2.3rc1` but METADATA
+`Version: 1.2.3-rc.1`; `1.2.3-rc` and `01.2.3` build; `1.2.3-foo` fails.
+
+In-repo guards: `tests/test_packaging.py` builds wheel, sdist and wheel-from-sdist with `python -m hatchling build`
+on every `make verify` (wheel/sdist file lists, METADATA version); `make verify` 516 passed; pytest on Python 3.11
+516 passed.
+
+## Evidence (S2, original option A — historical)
 
 Run on 2026-10-12 with an uncommitted `VERSION` = `0.1.0-dev` (owned by T1.3) and temporary
 `MARKER.txt` files under `plugins/kuanflow/skills/` and `templates/project/` (not committed).
@@ -143,18 +173,19 @@ kuanflow 0.1.0.dev0
 | Kiro (`kiro-cli --version`) | 2.29.0 |
 | Bats (`bats --version`) | 1.10.0 |
 
-Lower bounds in `cli/pyproject.toml` follow the resolved versions (`copier>=9.18.2,<10` per ADR-0002, `typer>=0.27`, `pyyaml>=6.0`,
-`tomlkit>=0.15`, `rich>=15.0`, `jsonschema>=4.26`); `cli/uv.lock` pins the exact set.
+Lower bounds in `pyproject.toml` follow the resolved versions (`copier>=9.18.2,<10` per ADR-0002, `typer>=0.27`, `pyyaml>=6.0`,
+`tomlkit>=0.15`, `rich>=15.0`, `jsonschema>=4.26`); `uv.lock` pins the exact set.
 
 ## Consequences
 
 - Every build needs `VERSION` reachable (repo checkout or sdist). A tree without it fails loudly at build time.
-- Docs and README must show `#subdirectory=cli` in install commands; PKG §9.2's root-level form is superseded.
+- Install commands use the plain git form of PKG §9.2; PKG §4's `cli/pyproject.toml` location is superseded
+  (`pyproject.toml` and `uv.lock` live at the repo root, code stays in `cli/src/`).
 - Wheels carry only the current content; upgrades fetch older content via `manifest.source` (P6), which needs
   git access to the source repo (or `file://` mirrors offline).
 - Editable installs never contain `_content`; the runtime locator must support both modes (decision 4) and is
   tested in both when implemented.
 - `kuanflow --version` reflects installed metadata: after a `VERSION` bump outside `uv run`, re-sync is required.
-- `check_versions.py` (T1.3) imports the same converter (`cli/semver_pep440.py`), so a version the gate
+- `check_versions.py` (T1.3) imports the same converter (`cli/src/kuanflow_cli/semver.py`), so a version the gate
   accepts is a version the package can build.
 - TODO(verify): `build-system requires hatchling>=1.27` — only 1.30–1.32 were observed; the lower bound is untested.

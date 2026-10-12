@@ -1,7 +1,8 @@
-"""The single SemVer -> PEP 440 converter (contract C9). Stdlib only.
+"""The single SemVer -> PEP 440 converter (contracts C9/C9r). Stdlib only.
 
-Used by ``cli/hatch_build.py`` (package version) and ``tests/check_versions.py`` (release gate),
-both loading this file by path, so the two can never disagree.
+Used by the root ``hatch_build.py`` (package version), ``tests/check_versions.py`` (release gate)
+and the CLI at runtime. The first two load this file by path, so it must not import anything from
+``kuanflow_cli``.
 
 Allowed: ``X.Y.Z`` (no leading zeros) with an optional pre-release in one of these forms:
 
