@@ -2,7 +2,7 @@
 work: KF-003-p2-content
 phase: P2 — Content source
 parent_plan: kuan-workbench/work/KF-001-plan/plan.md
-status: done — awaiting Gate P2
+status: done — Gate P2 passed (2026-10-12)
 ---
 # P2 — Content source
 
@@ -189,8 +189,8 @@ RED of T2.1/T2.2a recorded; adversarial review PASS; reviewer compares skills ag
 - [x] RED recorded for T2.1/T2.2a and FX1.0; GREEN recorded.
 - [x] Review FAIL → fix round 1 → re-review PASS (review.md).
 - [x] VERSION `0.2.0-dev`; `check_versions.py --tag v0.2.0-dev` exit 0; tag `v0.2.0-dev` (local, not pushed).
-- [ ] Gate P2: Q-29, Q-30, Q-31.
+- [x] Gate P2: Q-29 → A, Q-30 accepted, Q-31 accepted (all recommendations).
 
 ## Status (update before any context reset)
-- P2 implemented, re-review PASS, tagged `v0.2.0-dev` locally. Waiting for Gate P2 (questions.md Q-29..Q-31).
-- NEXT after the gate: P3 (KF-004) templates — tests first; remember D-P2-6 (exec bit).
+- P2 DONE. Gate P2 passed (all recommendations). Tag `v0.2.0-dev` local only.
+- NEXT (only when the user asks): P3 (KF-004) templates — tests first; remember D-P2-6 (exec bit).

@@ -1,6 +1,6 @@
 ---
 work: KF-003-p2-content
-status: open (Gate P2)
+status: answered (Gate P2, 2026-10-12)
 ---
 # Questions raised in P2
 
@@ -25,3 +25,9 @@ Whole-token branch match (PKG blocks `git push origin fix/main`), `rm -fr` / `rm
 3. w6-test appends the AC → test map to `plan.md` under `## Test map` (PB W6 asks for the map, not a file).
 4. Every `wN` command stops when `wN` is not in `workflows.enabled`.
 - **Recommend:** accept all four.
+
+## Gate P2 answers (2026-10-12)
+Human decision: **"apply all recommendations"**.
+- Q-29 → **A** (keep scanning quoted words; false positives on quoted text accepted).
+- Q-30 → **accepted** (stricter guard rules than the PKG sample).
+- Q-31 → **accepted** (all four content additions).
