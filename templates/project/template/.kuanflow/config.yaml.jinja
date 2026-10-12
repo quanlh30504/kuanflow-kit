@@ -2,26 +2,37 @@
 # Edit values freely, but keep the key structure: it follows the Kuanflow config schema.
 # Personal overrides go in .kuanflow/config.local.yaml (git-ignored).
 # Blank lines between keys are intentional: they keep `kuanflow upgrade` merges conflict-free.
+{#- q(v): v as a YAML double-quoted string. Non-ASCII is written literally; DEL, C1 controls,
+    U+2028/U+2029 (YAML line breaks), surrogates and BOM/non-characters stay \u-escaped. #}
+{%- macro q(v) -%}
+{%- for c in v | to_json(ensure_ascii=False) -%}
+{%- if ("\x7f" <= c <= "\x9f") or ("\ud800" <= c <= "\udfff") or c in "\u2028\u2029\ufeff\ufffe\uffff" -%}
+{{ (c | to_json)[1:-1] }}
+{%- else -%}
+{{ c }}
+{%- endif -%}
+{%- endfor -%}
+{%- endmacro %}
 schema_version: 1
 
 kuanflow:
-  min_version: {{ kuanflow_version | to_json }}
+  min_version: {{ q(kuanflow_version) }}
 
 project:
-  name: {{ project_name | to_json }}
-  stack: {{ stack | to_json }}
+  name: {{ q(project_name) }}
+  stack: {{ q(stack) }}
 
 # {test} in single_test is replaced by the test name.
 commands:
-  build: {{ build_cmd | to_json }}
+  build: {{ q(build_cmd) }}
 
-  test: {{ test_cmd | to_json }}
+  test: {{ q(test_cmd) }}
 
-  verify: {{ verify_cmd | to_json }}  # must pass before anything is called done
+  verify: {{ q(verify_cmd) }}  # must pass before anything is called done
 
-  single_test: {{ single_test_cmd | to_json }}
+  single_test: {{ q(single_test_cmd) }}
 
-  lint: {{ lint_cmd | to_json }}
+  lint: {{ q(lint_cmd) }}
 
 paths:
   work: kuan-workbench/work  # per-ticket artifacts; may be changed (e.g. specs)
@@ -35,15 +46,15 @@ paths:
   runbooks: docs/runbooks
 
 artifacts:
-  commit: {{ artifacts_commit | to_json }}  # minimal | full | none
+  commit: {{ q(artifacts_commit) }}  # minimal | full | none
 
 work:
-  ticket_pattern: {{ ticket_pattern | to_json }}  # finds the ticket key in a branch name
+  ticket_pattern: {{ q(ticket_pattern) }}  # finds the ticket key in a branch name
 
 # Globs agents must not modify.
 protected_paths:
 {%- for p in protected_paths %}
-  - {{ p | to_json }}
+  - {{ q(p) }}
 {%- else %} []
 {%- endfor %}
 
@@ -56,17 +67,26 @@ workflows:
 debug:
   services:
 {%- for s in services %}
-    - {{ s | to_json }}
+    - {{ q(s) }}
 {%- else %} []
 {%- endfor %}
-  budget: { max_turns_total: 80, classification: 5, subagent: 20, fix_rounds: 3 }
+
+  budget:
+    max_turns_total: 80
+
+    classification: 5
+
+    subagent: 20
+
+    fix_rounds: 3
+
   allow_prod_log_access: false  # enable only when approved and logs are masked
 
 knowledge:
-  repo: {{ knowledge_repo | to_json }}
+  repo: {{ q(knowledge_repo) }}
 
 integrations:
-  jira_project_key: {{ jira_project_key | to_json }}
+  jira_project_key: {{ q(jira_project_key) }}
 
 guard:
   extra_block_patterns: []  # extra regexes for guard-bash.sh to block

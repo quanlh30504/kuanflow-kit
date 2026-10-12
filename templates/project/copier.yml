@@ -61,15 +61,19 @@ fintech:
   help: Does the project handle money, orders, accounts or reconciliation?
   default: true
 
+# List answers are validated: a plain string ("src/**") or a mapping would otherwise be
+# iterated character by character or key by key.
 protected_paths:
   type: yaml
   help: Globs that agents must not modify
   default: ["src/main/resources/db/migration/**", "**/legacy/**"]
+  validator: "{% if protected_paths is string or protected_paths is mapping or protected_paths is not sequence or (protected_paths | select('string') | list | length) != (protected_paths | length) %}Must be a list of strings{% endif %}"
 
 services:
   type: yaml
   help: Related services (used by the debug harness)
   default: []
+  validator: "{% if services is string or services is mapping or services is not sequence or (services | select('string') | list | length) != (services | length) %}Must be a list of strings{% endif %}"
 
 artifacts_commit:
   type: str
