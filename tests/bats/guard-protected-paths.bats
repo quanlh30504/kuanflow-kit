@@ -159,3 +159,10 @@ assert_allowed() {
   run --separate-stderr bash -c 'printf "{\"tool_input\":{}}" | "$1"' _ "$SCRIPTS/guard-protected-paths.sh"
   assert_allowed
 }
+
+@test "C12a never imports json/yaml from the project directory" {
+  plant_modules
+  run_path_guard "$PROJECT/src/main/resources/db/migration/V1__init.sql"
+  assert_blocked
+  [ ! -e "$PROJECT/PWNED" ]
+}

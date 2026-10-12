@@ -187,3 +187,14 @@ write_manifest() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"### .kuanflow/config.yaml"* ]]
 }
+
+@test "C12a never imports json/yaml from the project directory" {
+  plant_modules
+  write_manifest "1.0.0"
+  write_config $'kuanflow:\n  min_version: "1.4.0"'
+  run_load
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "## kuanflow v1.0.0" ]
+  [[ "$output" == *"WARNING:"* ]]
+  [ ! -e "$PROJECT/PWNED" ]
+}

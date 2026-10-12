@@ -178,3 +178,12 @@ with open(sys.argv[1], "w") as f:
   run grep -En '\b(curl|wget|nc|ncat|ssh|scp|telnet)\b|socket|urllib|http\.client|requests' "$COLLECT"
   [ "$status" -eq 1 ]
 }
+
+@test "C12a never imports json/yaml from the project directory" {
+  plant_modules
+  write_config $'paths:\n  scratch: .kuanflow/s2'
+  run "$COLLECT" --id INC-13 --log "$INPUTS/app.log"
+  [ "$status" -eq 0 ]
+  [ -f "$PROJECT/.kuanflow/s2/INC-13/context.json" ]
+  [ ! -e "$PROJECT/PWNED" ]
+}

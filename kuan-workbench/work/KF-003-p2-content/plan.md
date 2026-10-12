@@ -142,6 +142,24 @@ C22. **`plugins/kuanflow/README.md`** names every skill, agent and command, and 
 
 Run inline by the coordinator (no sub-agents this phase; the user did not ask for them).
 
+## Fix round 1 (after review FAIL — see review.md F1–F4)
+
+Contract amendments (tests are written against these):
+
+C13a. **Wrapped commands** — every word of a command line that contains whitespace (e.g. the argument of
+      `bash -c`, `sh -c`, `eval`, `ssh host "…"`) is also checked as a command line of its own, up to 3 levels
+      deep. `bash -c "git push --force origin main"`, `sh -c 'rm -rf /'`, `eval "git push origin main"` block.
+C13b. **B5 amended** — a recursive `rm` (`-r`, `-R`, `--recursive`) of a B5 target blocks with or without `-f`.
+      `rm -r ~` blocks; `rm -r ./build` is allowed.
+C12a. **No imports from the project** — with a `json.py` and a `yaml.py` in the working directory that write a
+      marker file, none of the four scripts runs them (no marker) and the guards still decide correctly.
+C13c. Explicit cases: `git push origin +main` blocks (force refspec); `more .env` blocks.
+
+| ID | Role | Files | Status |
+|---|---|---|---|
+| FX1.0 | Test Eng | `tests/bats/guard-bash.bats`, `tests/bats/{guard-protected-paths,load-config,collect-context}.bats` (C12a) | [ ] |
+| FX1.1 | Script Eng | `plugins/kuanflow/scripts/guard-bash.sh` (C13a, C13b) | [ ] |
+
 ## Verify (phase exit)
 `make verify` exit 0 (check_skills now runs the full rules on real content); bats green for every guard rule;
 RED of T2.1/T2.2a recorded; adversarial review PASS; reviewer compares skills against PB text.

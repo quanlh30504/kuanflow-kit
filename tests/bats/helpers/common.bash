@@ -22,7 +22,7 @@ write_local() {
 
 # json_field <key> <value> — prints {"tool_input":{"<key>":"<value>"}} with proper escaping
 json_field() {
-  python3 -c 'import json,sys; print(json.dumps({"tool_input": {sys.argv[1]: sys.argv[2]}}))' "$1" "$2"
+  python3 -I -c 'import json,sys; print(json.dumps({"tool_input": {sys.argv[1]: sys.argv[2]}}))' "$1" "$2"
 }
 
 # run_bash_guard <command string> — runs guard-bash.sh with that command as tool input
@@ -56,4 +56,12 @@ path_without_python3() {
     [ -x "$src" ] && ln -sf "$src" "$d/$tool"
   done
   printf '%s' "$d"
+}
+
+# plant_modules — puts json.py and yaml.py in $PROJECT that write $PROJECT/PWNED when imported (C12a)
+plant_modules() {
+  local m
+  for m in json yaml; do
+    printf 'open(%q, "w").write("x")\n' "$PROJECT/PWNED" > "$PROJECT/$m.py"
+  done
 }

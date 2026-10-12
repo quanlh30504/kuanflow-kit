@@ -270,3 +270,61 @@ assert_allowed() {
     'printf "{\"tool_input\":{\"command\":\"git push --force origin main\"}}" | "$1"' _ "$SCRIPTS/guard-bash.sh"
   assert_allowed
 }
+
+# --- Fix round 1: C13a wrapped commands, C13b rm without -f, C13c explicit cases, C12a imports ---
+
+@test "C13a blocks force push wrapped in bash -c" {
+  run_bash_guard 'bash -c "git push --force origin main"'
+  assert_blocked
+}
+
+@test "C13a blocks rm -rf / wrapped in sh -c" {
+  run_bash_guard "sh -c 'rm -rf /'"
+  assert_blocked
+}
+
+@test "C13a blocks direct push wrapped in eval" {
+  run_bash_guard 'eval "git push origin main"'
+  assert_blocked
+}
+
+@test "C13a blocks a doubly wrapped command" {
+  run_bash_guard "bash -c \"sh -c 'cat .env'\""
+  assert_blocked
+}
+
+@test "C13a allows a harmless wrapped command" {
+  run_bash_guard 'bash -c "git push origin feature/x && ls"'
+  assert_allowed
+}
+
+@test "C13b blocks rm -r ~ without -f" {
+  run_bash_guard "rm -r ~"
+  assert_blocked
+}
+
+@test "C13b allows rm -r ./build" {
+  run_bash_guard "rm -r ./build"
+  assert_allowed
+}
+
+@test "C13c blocks a +main force refspec" {
+  run_bash_guard "git push origin +main"
+  assert_blocked
+  [[ "$stderr" == *"force push"* ]]
+}
+
+@test "C13c blocks more .env" {
+  run_bash_guard "more .env"
+  assert_blocked
+}
+
+@test "C12a never imports json/yaml from the project directory" {
+  plant_modules
+  write_config $'guard:\n  extra_block_patterns:\n    - "terraform apply"'
+  run_bash_guard "git push --force origin main"
+  assert_blocked
+  run_bash_guard "terraform plan"
+  assert_allowed
+  [ ! -e "$PROJECT/PWNED" ]
+}
