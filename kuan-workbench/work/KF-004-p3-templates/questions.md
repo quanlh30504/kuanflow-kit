@@ -1,6 +1,6 @@
 ---
 work: KF-004-p3-templates
-status: open — Gate P3
+status: answered (Gate P3, 2026-10-13)
 ---
 # Questions raised in P3
 
@@ -27,3 +27,10 @@ R4 invisible/bidi characters (Unicode Cf, e.g. U+202E) written raw into `config.
 Relative `_src_path` from a sub-directory (P4: CLI chdirs to root), upstream-deleted files, and `exclude=` to stop
 re-creating a deleted `docs/adr/0000-template.md` are not exercised in P3 (no `upgrade` yet).
 - **Recommend:** carry to P4 (root handling) and P6 (upgrade tests), as listed in plan.md "Carried to P4/P6".
+
+## Gate P3 answers (2026-10-13)
+Human decision: **"apply all recommendations"** ("áp dụng tất cả đề xuất").
+- Q-32 → **A** (fix round 2 for R1–R4 at the start of P4: tests for R1/R2, blank line for R3, escape Unicode Cf
+  for R4).
+- Q-33 → **accepted** (all six decisions).
+- Q-34 → **carried** to P4 (root handling) and P6 (upgrade tests).

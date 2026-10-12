@@ -2,7 +2,7 @@
 work: KF-004-p3-templates
 phase: P3 — Templates
 parent_plan: kuan-workbench/work/KF-001-plan/plan.md
-status: done — awaiting Gate P3
+status: done — Gate P3 passed (2026-10-13)
 ---
 # P3 — Templates
 
@@ -263,10 +263,11 @@ index + stale-wiki bats green; RED of T3.1 recorded; adversarial review PASS.
 - [x] RED recorded for T3.1 and FX1.0; GREEN recorded; tests unchanged between RED and GREEN commits.
 - [x] Review FAIL → fix round 1 → re-review PASS (review.md).
 - [x] VERSION `0.3.0-dev`; `check_versions.py --tag v0.3.0-dev` exit 0; tag `v0.3.0-dev` (local, not pushed).
-- [ ] Gate P3: Q-32..Q-34 (questions.md).
+- [x] Gate P3: Q-32 → A, Q-33 accepted, Q-34 carried (all recommendations).
 
 ## Status (update before any context reset)
-- P3 DONE, awaiting Gate P3 (questions.md Q-32..Q-34). Tag `v0.3.0-dev` local only.
+- P3 DONE. Gate P3 passed (all recommendations). Tag `v0.3.0-dev` local only.
 - Stale P1 agent worktrees removed at phase start. Sub-agents used: Test Eng ×2, CLI Eng, Template Eng ×3,
   Adversarial Reviewer (2 rounds).
-- NEXT (only when the user asks): P4 (KF-005) CLI core — remember review F8 carry-overs above.
+- NEXT (only when the user asks): P4 (KF-005) CLI core — start with P3 fix round 2 (Q-32: R1–R4), then P4 tests;
+  remember review F8 carry-overs and Q-34 (ADR-0002 TODOs).
