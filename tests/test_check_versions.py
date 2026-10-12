@@ -44,9 +44,7 @@ def make_tree(
 ) -> Path:
     if version is not None:
         (root / "VERSION").write_text(version + "\n", encoding="utf-8")
-    cli = root / "cli"
-    cli.mkdir()
-    (cli / "pyproject.toml").write_text(PYPROJECT_DYNAMIC, encoding="utf-8")
+    (root / "pyproject.toml").write_text(PYPROJECT_DYNAMIC, encoding="utf-8")
     if plugin is not None:
         d = root / "plugins" / "kuanflow" / ".claude-plugin"
         d.mkdir(parents=True)
@@ -140,7 +138,7 @@ def test_real_repo_root() -> None:
 
 
 def _load_tables() -> ModuleType:
-    path = REPO_ROOT / "cli" / "tests" / "test_semver_pep440.py"
+    path = REPO_ROOT / "cli" / "tests" / "test_semver.py"
     spec = importlib.util.spec_from_file_location("kf_test_semver_tables_cv", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -165,9 +163,7 @@ requires-python = ">=3.11"
 
 def make_static_tree(root: Path, version_text: str, static_version: str) -> Path:
     (root / "VERSION").write_text(version_text, encoding="utf-8")
-    cli = root / "cli"
-    cli.mkdir()
-    (cli / "pyproject.toml").write_text(
+    (root / "pyproject.toml").write_text(
         PYPROJECT_STATIC.format(version=static_version), encoding="utf-8"
     )
     return root
@@ -175,9 +171,7 @@ def make_static_tree(root: Path, version_text: str, static_version: str) -> Path
 
 def make_dynamic_tree(root: Path, version_text: str) -> Path:
     (root / "VERSION").write_text(version_text, encoding="utf-8")
-    cli = root / "cli"
-    cli.mkdir()
-    (cli / "pyproject.toml").write_text(PYPROJECT_DYNAMIC, encoding="utf-8")
+    (root / "pyproject.toml").write_text(PYPROJECT_DYNAMIC, encoding="utf-8")
     return root
 
 
@@ -263,4 +257,5 @@ def test_dynamic_version_c9_valid_accepted(tmp_path: Path, semver: str, _pep440:
 
 
 def test_checker_uses_shared_converter() -> None:
-    assert "semver_pep440" in SCRIPT.read_text(encoding="utf-8")
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert "kuanflow_cli" in source and "semver.py" in source

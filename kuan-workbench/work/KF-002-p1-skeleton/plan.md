@@ -2,7 +2,7 @@
 work: KF-002-p1-skeleton
 phase: P1 — Skeleton & tooling
 parent_plan: kuan-workbench/work/KF-001-plan/plan.md
-status: done — awaiting Gate P1
+status: in progress — Gate P1 change R2 (root packaging)
 ---
 # P1 — Skeleton & tooling
 
@@ -92,6 +92,33 @@ C10. `kuanflow` with no arguments prints help; exit code not contracted in P1 (F
 | FX1.0 | Test Engineer | `cli/tests/test_semver_pep440.py`, `cli/tests/test_hatch_build.py`, `tests/test_tooling_contracts.py`, additions to `tests/test_check_versions.py`, `tests/test_check_skills_stub.py` | [x] done (66c038a); F3/C10 follow-up c903fa0 |
 | FX1.1 | CLI Engineer | `cli/semver_pep440.py`, `cli/hatch_build.py`, `cli/pyproject.toml` (+hatchling dev), `cli/uv.lock`, `docs/adr/0001-foundations.md` (fix F4) | [x] done (704c66a) |
 | FX1.2 | Release/CI | `tests/check_versions.py` (use C9 module, C4a), `tests/check_skills.py` (C5a), `Makefile` (C7a), `.github/workflows/ci.yml` (C7a) | [x] done (20b1ee4) |
+
+## Gate P1 change R2 — root `pyproject.toml` (user decision 2026-10-12, supersedes ADR-0001 decision 3)
+
+Why: the `cli/`-local project needed ~60 lines of custom build hook (sdist copy, two-place VERSION lookup → F5) and a
+`#subdirectory=cli` install URL. A root project uses hatchling's built-in `force-include`; spike evidence in the
+ADR-0001 revision. Contract amendments (supersede C2, C3, C7, C9 where they conflict):
+
+C2r. **Project at repo root** — `pyproject.toml` + `uv.lock` at the repo root; `cli/pyproject.toml`, `cli/uv.lock`,
+     `cli/hatch_build.py`, `cli/semver_pep440.py` no longer exist. Name, Python floor, backend, entry point, runtime
+     deps, dev group (incl. hatchling) as before. Wheel package: `cli/src/kuanflow_cli`. Install form:
+     `uvx --from "git+<url>@vX.Y.Z" kuanflow` (no `#subdirectory`).
+C7r. All C7 commands run as `uv run --locked <cmd>` from the repo root (no `--project`).
+C9r. Converter lives at `cli/src/kuanflow_cli/semver.py` — same API and rules as C9, stdlib-only, imports nothing from
+     `kuanflow_cli` (loadable by file path without importing the package). Root `hatch_build.py` holds ONLY a
+     metadata hook; `read_version(root)` reads `root/VERSION` only (a `VERSION` in a parent dir is never used) and
+     converts via `semver.py`. `tests/check_versions.py` loads the same file; `CLI_PYPROJECT` = `pyproject.toml`.
+C11. **Built artefacts** (`python -m hatchling build`): wheel contains `kuanflow_cli/__init__.py`,
+     `kuanflow_cli/semver.py`, `kuanflow_cli/_content/plugins/kuanflow/**`, `kuanflow_cli/_content/templates/**`
+     and no `tests/`; wheel METADATA `Version` = PEP 440 form of VERSION. sdist contains `VERSION`, `hatch_build.py`,
+     `pyproject.toml`, `cli/src/kuanflow_cli/**`, `plugins/kuanflow/**`, `templates/**`. A wheel built from the
+     unpacked sdist has the same file list as the wheel built from the repo.
+
+| ID | Role | Files | Status |
+|---|---|---|---|
+| R2.0 | Test Engineer | `cli/tests/test_semver.py` (renamed), `cli/tests/test_hatch_build.py`, `cli/tests/test_version.py`, `tests/test_tooling_contracts.py`, `tests/test_check_versions.py`, `tests/test_packaging.py` (new) | [ ] |
+| R2.1 | CLI Eng | `pyproject.toml`, `uv.lock`, `hatch_build.py`, `cli/src/kuanflow_cli/semver.py`, remove `cli/{pyproject.toml,uv.lock,hatch_build.py,semver_pep440.py,.gitignore}`, ADR-0001 | [ ] |
+| R2.2 | Release/CI | `tests/check_versions.py`, `Makefile`, `.github/workflows/ci.yml`, `CHANGELOG.md` | [ ] |
 
 ## Verify (phase exit)
 `make verify` exit 0; RED run of T1.0 recorded below; ADR-0001/0002 written.

@@ -22,7 +22,7 @@ def _requirement_name(spec: str) -> str:
 
 
 def _runtime_deps() -> dict[str, str]:
-    data = tomllib.loads((REPO_ROOT / "cli" / "pyproject.toml").read_text(encoding="utf-8"))
+    data = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     return {_requirement_name(s): s for s in data["project"]["dependencies"]}
 
 
@@ -48,7 +48,7 @@ def test_ruff_config() -> None:
 
 # --- C7a ---------------------------------------------------------------------------------------
 
-# Each C7 command, identified by its tail; all but bats must go through `uv run --project cli`.
+# Each C7 command, identified by its tail; all but bats go through `uv run` (C7r: no --project).
 C7_COMMANDS: list[tuple[str, bool]] = [
     ("ruff check .", True),
     ("ruff format --check .", True),
@@ -79,7 +79,7 @@ def _matches(line: str, tail: str, via_uv: bool) -> bool:
     if not re.search(r"(^|\s)" + re.escape(tail) + r"$", line):
         return False
     if via_uv:
-        return "uv run" in line and "--project cli" in line
+        return "uv run" in line and "--project" not in line
     return True
 
 

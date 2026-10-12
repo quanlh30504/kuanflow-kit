@@ -1,4 +1,4 @@
-"""Contract tests C9: cli/semver_pep440.py, the single SemVer -> PEP 440 converter.
+"""Contract tests C9/C9r: cli/src/kuanflow_cli/semver.py, the single SemVer -> PEP 440 converter.
 
 VALID and INVALID are also loaded by tests/test_check_versions.py and cli/tests/test_hatch_build.py
 so that every real implementation is checked against the same table.
@@ -12,7 +12,7 @@ from types import ModuleType
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MODULE_PATH = REPO_ROOT / "cli" / "semver_pep440.py"
+MODULE_PATH = REPO_ROOT / "cli" / "src" / "kuanflow_cli" / "semver.py"
 
 # SemVer (as written in VERSION) -> expected PEP 440 string.
 VALID: list[tuple[str, str]] = [
@@ -96,7 +96,7 @@ INVALID_WHITESPACE: list[str] = [
 
 def load_module() -> ModuleType:
     assert MODULE_PATH.is_file(), f"missing C9 module: {MODULE_PATH}"
-    name = "kf_test_semver_pep440"
+    name = "kf_test_semver"
     spec = importlib.util.spec_from_file_location(name, MODULE_PATH)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -116,11 +116,17 @@ def test_module_is_stdlib_only() -> None:
     for third_party in ("hatchling", "packaging", "semver", "typer", "yaml"):
         assert f"import {third_party}" not in source
         assert f"from {third_party}" not in source
+    # C9r: loadable by file path, so it must not import the (typer-dependent) package.
+    for line in source.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(("import ", "from ")):
+            assert "kuanflow_cli" not in stripped, line
+            assert not stripped.startswith("from ."), line
 
 
 def test_api_present(mod: ModuleType) -> None:
     for name in ("parse", "is_semver", "to_pep440"):
-        assert callable(getattr(mod, name, None)), f"semver_pep440.{name} missing"
+        assert callable(getattr(mod, name, None)), f"semver.{name} missing"
 
 
 @pytest.mark.parametrize(("semver", "pep440"), VALID)

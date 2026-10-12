@@ -13,8 +13,8 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 VERSION_FILE = REPO_ROOT / "VERSION"
-PYPROJECT = REPO_ROOT / "cli" / "pyproject.toml"
-SEMVER_MODULE = REPO_ROOT / "cli" / "semver_pep440.py"
+PYPROJECT = REPO_ROOT / "pyproject.toml"
+SEMVER_MODULE = REPO_ROOT / "cli" / "src" / "kuanflow_cli" / "semver.py"
 
 SEMVER_RE = re.compile(
     r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
@@ -24,7 +24,7 @@ SEMVER_RE = re.compile(
 
 
 def _load_converter() -> ModuleType:
-    # The real C9 converter, loaded by path like hatch_build.py and check_versions.py do.
+    # The real C9r converter, loaded by path like hatch_build.py and check_versions.py do.
     spec = importlib.util.spec_from_file_location("kf_test_version_semver", SEMVER_MODULE)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
