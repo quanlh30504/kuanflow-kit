@@ -1,0 +1,13 @@
+target-version = "py311"
+line-length = 100
+
+[lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[lint.per-file-ignores]
+# Typer declares CLI options as default-argument calls.
+"cli/src/kuanflow_cli/**" = ["B008"]
+
+[format]
+# Code blocks in Markdown docs are illustrative sketches; do not reformat them.
+exclude = ["*.md"]

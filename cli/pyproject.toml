@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kuanflow-cli"
+dynamic = ["version"] # repo-root VERSION (SemVer) -> PEP 440, see hatch_build.py
+description = "Kuanflow - AI-assisted SDLC workflows installer and updater"
+readme = { text = "Kuanflow CLI. See https://github.com/<org>/kuanflow.", content-type = "text/plain" }
+requires-python = ">=3.11"
+license = "Apache-2.0"
+dependencies = [
+  "copier>=9.18",
+  "typer>=0.27",
+  "pyyaml>=6.0",
+  "tomlkit>=0.15",
+  "rich>=15.0",
+  "jsonschema>=4.26",
+]
+
+[project.scripts]
+kuanflow = "kuanflow_cli.main:app"
+
+[dependency-groups]
+dev = [
+  "pytest>=9.1",
+  "pytest-cov>=7.1",
+  "ruff>=0.17",
+]
+
+[tool.hatch.metadata.hooks.custom]
+path = "hatch_build.py"
+
+[tool.hatch.build.hooks.custom]
+path = "hatch_build.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kuanflow_cli"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/kuanflow_cli", "hatch_build.py", "pyproject.toml"]
+
+[tool.uv]
+# Re-build the editable install when the version source changes.
+cache-keys = [{ file = "pyproject.toml" }, { file = "hatch_build.py" }, { file = "../VERSION" }]
