@@ -789,3 +789,155 @@ def test_c28a_three_way_update_merges(
     _expected_local(after, section, local, before)
     _expected_upstream(text, after, section, upstream, before)
     assert answers_file(proj)["_commit"] == f"v{V2}"
+
+
+# --- C28c blank line between project.name and project.stack (fix round 2) ----------------------
+
+
+@pytest.mark.parametrize("stack", STACKS)
+def test_c28c_blank_line_between_project_keys(rendered: dict[str, Path], stack: str) -> None:
+    lines = (rendered[stack] / ".kuanflow" / "config.yaml").read_text(encoding="utf-8").splitlines()
+    start, end = _section(lines, "project")
+    keys = [i for i in range(start + 1, end) if _CHILD.match(lines[i])]
+    assert [lines[i].split(":")[0].strip() for i in keys] == ["name", "stack"], lines[start:end]
+    assert _blank_between(lines, keys[0], keys[1]), lines[start:end]
+
+
+_PROJECT_CASES = [("project", "name", "stack"), ("project", "stack", "name")]
+
+
+@pytest.mark.parametrize(
+    ("section", "local", "upstream"),
+    _PROJECT_CASES,
+    ids=[f"{s}:{loc}-vs-{up}" for s, loc, up in _PROJECT_CASES],
+)
+def test_c28c_three_way_update_merges_project_leaves(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    content_v1: Path,
+    section: str,
+    local: str,
+    upstream: str,
+) -> None:
+    # Same real Copier 3-way update as C28a, for the leaf pair (project.name, project.stack).
+    test_c28a_three_way_update_merges(tmp_path, monkeypatch, content_v1, section, local, upstream)
+
+
+# --- C28d invisible/format characters stay escaped (fix round 2) -------------------------------
+
+
+def _chars(*ranges: tuple[int, int]) -> str:
+    return "".join(chr(c) for lo, hi in ranges for c in range(lo, hi + 1))
+
+
+ESCAPED_CHARS: dict[str, str] = {
+    "soft-hyphen": _chars((0x00AD, 0x00AD)),
+    "arabic-letter-mark": _chars((0x061C, 0x061C)),
+    "mongolian-vowel-sep": _chars((0x180E, 0x180E)),
+    "zw-and-marks": _chars((0x200B, 0x200F)),
+    "bidi-embeddings": _chars((0x202A, 0x202E)),
+    "word-joiner-invisibles": _chars((0x2060, 0x2064)),
+    "bidi-isolates-deprecated": _chars((0x2066, 0x206F)),
+    "bom": _chars((0xFEFF, 0xFEFF)),
+    "interlinear": _chars((0xFFF9, 0xFFFB)),
+    "noncharacters": _chars((0xFFFE, 0xFFFF)),
+    "tag-language": _chars((0xE0001, 0xE0001)),
+    "tags": _chars((0xE0020, 0xE007F)),
+}
+
+
+def _hostile_answers(value: str) -> dict[str, Any]:
+    return {
+        "project_name": f"name{value}end",
+        "stack": "node",
+        "build_cmd": f"make{value} build",
+        "ticket_pattern": f"[A-Z]+{value}-\\d+",
+        "knowledge_repo": f"https://k.example/{value}",
+        "jira_project_key": f"ORD{value}",
+        "protected_paths": [f"src{value}/**"],
+        "services": [f"svc{value}"],
+    }
+
+
+def _check_round_trip(cfg: dict[str, Any], data: dict[str, Any]) -> None:
+    assert cfg["project"]["name"] == data["project_name"]
+    assert cfg["commands"]["build"] == data["build_cmd"]
+    assert cfg["work"]["ticket_pattern"] == data["ticket_pattern"]
+    assert cfg["knowledge"]["repo"] == data["knowledge_repo"]
+    assert cfg["integrations"]["jira_project_key"] == data["jira_project_key"]
+    assert cfg["protected_paths"] == data["protected_paths"]
+    assert cfg["debug"]["services"] == data["services"]
+
+
+@pytest.mark.parametrize("group", list(ESCAPED_CHARS))
+def test_c28d_format_chars_escaped_and_round_trip(tmp_path: Path, group: str) -> None:
+    chars = ESCAPED_CHARS[group]
+    data = _hostile_answers(chars)
+    dst = tmp_path / "p"
+    engine().render(dst, data)
+    raw = (dst / ".kuanflow" / "config.yaml").read_bytes()
+    text = raw.decode("utf-8")
+    present = [f"U+{ord(c):04X}" for c in chars if c in text]
+    assert not present, f"written raw: {present}"
+    for c in chars:
+        assert c.encode("utf-8") not in raw, f"U+{ord(c):04X}"
+    _check_round_trip(config(dst), data)
+
+
+@pytest.mark.parametrize("surrogate", ["\ud800", "\udfff", "\udc00"])
+def test_c28d_lone_surrogate_round_trips_or_raises(tmp_path: Path, surrogate: str) -> None:
+    data = _hostile_answers(surrogate)
+    dst = tmp_path / "p"
+    cfg_path = dst / ".kuanflow" / "config.yaml"
+    try:
+        engine().render(dst, data)
+    except Exception:  # noqa: BLE001 - either outcome is allowed; a broken file is not
+        if cfg_path.exists():
+            _check_round_trip(config(dst), data)
+        return
+    raw = cfg_path.read_bytes()
+    text = raw.decode("utf-8")  # strict: no lone surrogate (or its CESU bytes) in the file
+    assert surrogate not in text
+    _check_round_trip(config(dst), data)
+
+
+# --- C28e literal non-ASCII for every string answer (fix round 2) ------------------------------
+
+_NON_ASCII = "Dịch vụ β đơn hàng 注文 😀"
+
+
+def test_c28e_non_ascii_literal_in_every_string_field(tmp_path: Path) -> None:
+    data: dict[str, Any] = {
+        key: f"{_NON_ASCII} [{key}]"
+        for key in [
+            "project_name",
+            "build_cmd",
+            "test_cmd",
+            "verify_cmd",
+            "single_test_cmd",
+            "lint_cmd",
+            "ticket_pattern",
+            "knowledge_repo",
+            "jira_project_key",
+        ]
+    }
+    data["stack"] = "node"
+    data["protected_paths"] = [f"{_NON_ASCII} [pp1]/**", f"{_NON_ASCII} [pp2]"]
+    data["services"] = [f"{_NON_ASCII} [svc1]", f"{_NON_ASCII} [svc2]"]
+    dst = tmp_path / "p"
+    engine().render(dst, data)
+    text = (dst / ".kuanflow" / "config.yaml").read_text(encoding="utf-8")
+    expected = [v for k, v in data.items() if k not in ("stack", "protected_paths", "services")]
+    expected += data["protected_paths"] + data["services"]
+    for value in expected:
+        assert value in text, f"not written literally: {value!r}"
+    assert "\\u" not in text.lower(), "no \\u escapes for ordinary non-ASCII"
+    cfg = config(dst)
+    _check_round_trip(cfg, data)
+    assert cfg["commands"] == {
+        "build": data["build_cmd"],
+        "test": data["test_cmd"],
+        "verify": data["verify_cmd"],
+        "single_test": data["single_test_cmd"],
+        "lint": data["lint_cmd"],
+    }

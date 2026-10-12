@@ -292,6 +292,9 @@ C50. **`kuanflow uninstall [--dry-run] [--force] [--root PATH]`** (CMD-21, TST-1
      `.kuanflow/manifest.json` and `.kuanflow/cache/`, and every directory left empty by these deletions (never
      the root). No backups (project mode: everything is in git). `--dry-run`: print the diff, change nothing.
      Lines: `delete <p>`, `remove-block <p>`, `keep <p> (…)`; final `Kuanflow removed` . Exit 0.
+     **C50a (personal mode):** local-owned entries whose sha256 still matches are deleted too (they are untracked
+     and were created by Kuanflow); modified ones are kept (`keep <p> (modified)`). So personal init → uninstall
+     leaves `git status --porcelain` exactly as before init.
      Guarantee: on a fixture, init → commit → uninstall leaves every pre-existing file byte-identical (newline
      exception of C42) and `docs/`, `kuan-workbench/` intact.
 C51. **`kuanflow promote <draft> [--dry-run] [--root PATH]`** (CMD-20, Q-18) — `<draft>` relative to cwd; must be an
@@ -334,6 +337,20 @@ C53. **Wiring** — `main.py` registers `init`, `status`, `doctor`, `promote`, `
 
 ### Coverage
 C54. `make verify` runs pytest with `--cov=kuanflow_cli --cov-fail-under=80` (whole package, PKG/plan P4).
+
+### Clarifications accepted after T4.1 (tests encode these literal readings)
+- C38: `detect().answers` has exactly `project_name`, `stack`, `protected_paths`, `use_orca` + the stack's command
+  keys; a *file* where a directory is expected does not count; non-object/non-UTF-8 `package.json` = invalid.
+- C39: underscore keys and other templates' questions in a data file are unknown → `AnswersError`.
+- C40: `Manifest(...)` defaults `manifest_version=1` and, when `source` is not given, computes it from
+  `KUANFLOW_SOURCE` + `@v<kuanflow_version>`; a `source` read from a file is kept. `read()` accepts any field/file
+  order, `dumps()` canonicalises. `diff` "changed" = same path, any field differs.
+- C41: no `diff --git` line; a same-bytes change with a different mode is kept (old mode of an existing file read
+  as shown in the tests); any `..` component is invalid; backup suffix `-<digits>`.
+- C42: `upsert`/`remove` raise `BlockError` on broken markers; body normalisation strips all trailing newlines and
+  adds one; indented markers are not recognised.
+- C44/C45: objects that were already empty are not pruned; object values are replaced whole.
+- C47: skipped pre-existing local-owned files are not in the manifest; manifest `agents` is `[]` in P4.
 
 ## Tasks
 
