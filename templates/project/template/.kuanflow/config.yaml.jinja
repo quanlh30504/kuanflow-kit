@@ -2,11 +2,26 @@
 # Edit values freely, but keep the key structure: it follows the Kuanflow config schema.
 # Personal overrides go in .kuanflow/config.local.yaml (git-ignored).
 # Blank lines between keys are intentional: they keep `kuanflow upgrade` merges conflict-free.
-{#- q(v): v as a YAML double-quoted string. Non-ASCII is written literally; DEL, C1 controls,
-    U+2028/U+2029 (YAML line breaks), surrogates and BOM/non-characters stay \u-escaped. #}
+{#- q(v): v as a YAML double-quoted string (JSON escaping, which YAML double quotes accept).
+    Ordinary non-ASCII is written literally. These stay \u/\U-escaped:
+    - DEL and C1 controls (U+007F-U+009F); lone surrogates (U+D800-U+DFFF);
+    - U+2028/U+2029 (YAML line breaks); BOM U+FEFF; non-characters U+FFFE/U+FFFF;
+    - invisible format characters, so they cannot hide what a command really runs:
+      U+00AD soft hyphen, U+061C, U+180E, U+200B-U+200F (zero-width, LRM/RLM),
+      U+202A-U+202E and U+2066-U+206F (bidi controls, deprecated formats),
+      U+2060-U+2064 (word joiner, invisible operators), U+FFF9-U+FFFB (interlinear),
+      U+E0001 and U+E0020-U+E007F (tags).
+    BMP characters use JSON's \uXXXX; the tags (outside the BMP) use YAML's \UXXXXXXXX, since
+    YAML does not join a JSON surrogate pair back into one character. #}
 {%- macro q(v) -%}
 {%- for c in v | to_json(ensure_ascii=False) -%}
-{%- if ("\x7f" <= c <= "\x9f") or ("\ud800" <= c <= "\udfff") or c in "\u2028\u2029\ufeff\ufffe\uffff" -%}
+{%- if c in "\U000e0001" or ("\U000e0020" <= c <= "\U000e007f") -%}
+\U{{ c.encode("utf-32-be").hex() | upper }}
+{%- elif ("\x7f" <= c <= "\x9f") or ("\ud800" <= c <= "\udfff")
+      or c in "\xad\u061c\u180e\u2028\u2029\ufeff\ufffe\uffff"
+      or ("\u200b" <= c <= "\u200f") or ("\u202a" <= c <= "\u202e")
+      or ("\u2060" <= c <= "\u2064") or ("\u2066" <= c <= "\u206f")
+      or ("\ufff9" <= c <= "\ufffb") -%}
 {{ (c | to_json)[1:-1] }}
 {%- else -%}
 {{ c }}
@@ -20,6 +35,7 @@ kuanflow:
 
 project:
   name: {{ q(project_name) }}
+
   stack: {{ q(stack) }}
 
 # {test} in single_test is replaced by the test name.
