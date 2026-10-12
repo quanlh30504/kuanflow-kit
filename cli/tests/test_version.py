@@ -1,17 +1,20 @@
 """Contract tests C1/C2: VERSION file, CLI package metadata and `kuanflow --version`."""
 
 import importlib
+import importlib.util
 import re
 import subprocess
 import sys
 import tomllib
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 VERSION_FILE = REPO_ROOT / "VERSION"
 PYPROJECT = REPO_ROOT / "cli" / "pyproject.toml"
+SEMVER_MODULE = REPO_ROOT / "cli" / "semver_pep440.py"
 
 SEMVER_RE = re.compile(
     r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
@@ -20,32 +23,13 @@ SEMVER_RE = re.compile(
 )
 
 
-def semver_to_pep440(version: str) -> str:
-    """Convert the in-scope SemVer forms to PEP 440."""
-    m = re.fullmatch(r"(\d+\.\d+\.\d+)(?:-(dev|beta\.(\d+)|rc\.(\d+)))?", version)
-    if m is None:
-        raise ValueError(f"unsupported version form: {version!r}")
-    base, pre, beta, rc = m.groups()
-    if pre is None:
-        return base
-    if pre == "dev":
-        return f"{base}.dev0"
-    if beta is not None:
-        return f"{base}b{beta}"
-    return f"{base}rc{rc}"
-
-
-@pytest.mark.parametrize(
-    ("semver", "pep440"),
-    [
-        ("0.1.0-dev", "0.1.0.dev0"),
-        ("1.2.3-beta.4", "1.2.3b4"),
-        ("1.2.3-rc.1", "1.2.3rc1"),
-        ("1.2.3", "1.2.3"),
-    ],
-)
-def test_semver_to_pep440_helper(semver: str, pep440: str) -> None:
-    assert semver_to_pep440(semver) == pep440
+def _load_converter() -> ModuleType:
+    # The real C9 converter, loaded by path like hatch_build.py and check_versions.py do.
+    spec = importlib.util.spec_from_file_location("kf_test_version_semver", SEMVER_MODULE)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def _version_text() -> str:
@@ -53,7 +37,7 @@ def _version_text() -> str:
 
 
 def _expected_pep440() -> str:
-    return semver_to_pep440(_version_text())
+    return _load_converter().to_pep440(_version_text())
 
 
 def test_version_file_is_single_semver_line() -> None:
@@ -97,3 +81,13 @@ def test_cli_version_console_script() -> None:
     )
     assert proc.returncode == 0, proc.stderr
     assert proc.stdout.strip() == f"kuanflow {_expected_pep440()}"
+
+
+def test_cli_no_args_prints_help() -> None:
+    # C10: bare `kuanflow` prints help; the exit code is not contracted in P1.
+    from typer.testing import CliRunner
+
+    app = importlib.import_module("kuanflow_cli.main").app
+    result = CliRunner().invoke(app, [])
+    assert "Usage" in result.output
+    assert "--version" in result.output
