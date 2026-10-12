@@ -1,0 +1,6 @@
+project_name: tooling
+stack: other
+use_orca: false
+fintech: false
+artifacts_commit: none
+services: [a-svc, b-svc]

@@ -106,3 +106,51 @@ def test_sdist_contents(built: dict[str, Path]) -> None:
 def test_wheel_from_sdist_is_identical(built: dict[str, Path]) -> None:
     assert _wheel_files(built["wheel_from_sdist"]) == _wheel_files(built["wheel"])
     assert _wheel_version(built["wheel_from_sdist"]) == _wheel_version(built["wheel"])
+
+
+# --- C11a (P3): VERSION and template configs ship in the wheel; content_root() finds them -------
+
+C11A_FILES = [
+    "kuanflow_cli/_content/VERSION",
+    "kuanflow_cli/_content/templates/project/copier.yml",
+    "kuanflow_cli/_content/templates/knowledge-repo/copier.yml",
+]
+
+
+@pytest.mark.parametrize("rel", C11A_FILES)
+def test_c11a_wheel_ships_content_file(built: dict[str, Path], rel: str) -> None:
+    assert rel in _wheel_files(built["wheel"]), rel
+    assert rel in _wheel_files(built["wheel_from_sdist"]), rel
+
+
+def test_c11a_wheel_version_file_matches(built: dict[str, Path]) -> None:
+    with zipfile.ZipFile(built["wheel"]) as zf:
+        shipped = zf.read("kuanflow_cli/_content/VERSION").decode("utf-8")
+    assert shipped.strip() == (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
+
+
+def test_c11a_content_root_in_installed_wheel(built: dict[str, Path], tmp_path: Path) -> None:
+    # An unpacked wheel is what a pure-Python install puts in site-packages.
+    site = tmp_path / "site"
+    with zipfile.ZipFile(built["wheel"]) as zf:
+        zf.extractall(site)
+    code = (
+        "import sys; sys.path.insert(0, sys.argv[1]); "
+        "from kuanflow_cli import engine; "
+        "print(engine.__file__); print(engine.content_root()); print(engine.current_version())"
+    )
+    elsewhere = tmp_path / "cwd"
+    elsewhere.mkdir()
+    proc = subprocess.run(
+        [sys.executable, "-I", "-c", code, str(site)],
+        cwd=elsewhere,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    engine_file, root, version = proc.stdout.splitlines()
+    assert Path(engine_file).resolve().is_relative_to(site.resolve()), engine_file
+    assert Path(root).resolve() == (site / "kuanflow_cli" / "_content").resolve()
+    assert version == (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
