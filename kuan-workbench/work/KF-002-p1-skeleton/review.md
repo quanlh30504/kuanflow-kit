@@ -118,3 +118,21 @@ Reviewer: Coordinator (inline; mutation replay in a scratch clone per mutation, 
 | F10 bare `kuanflow` | **contracted** (C10, c903fa0) | Prints help; exit code deferred to P4. |
 
 ## Verdict: PASS
+
+---
+
+# Re-review — Gate P1 change R2 (root packaging) — `db53b75..9bb5283`
+
+Reviewer: Coordinator (inline; fresh clone per mutation, `make verify` as oracle).
+
+| Check | Result | Evidence |
+|---|---|---|
+| Verify suite | PASS | `make verify` exit 0, `516 passed`, bats `ok 1..3`; Python 3.11 `516 passed`. |
+| RED before GREEN | PASS | 7a6d4bb: `40 failed, 198 passed, 278 errors` before the move. |
+| Packaging guarded | PASS | N1 drop templates force-include, N7 drop plugin force-include, N2 drop templates from sdist, N8 sdist ships only `main.py` → all killed by `tests/test_packaging.py`. |
+| Version guarded | PASS | M3 rc→.post, M9 hook own mapping, M12 leading zeros, N3 parent-VERSION fallback (F5 class), N5 converter imports the package, N6 checker reads old `cli/pyproject.toml` → all killed. |
+| Gate wiring | PASS | M1 drop copier, M5 drop check_versions step, M10 drop `--locked`, N4 `--project` back → all killed. |
+| Install | PASS | `uvx --from "git+file://<scratch>/r@vtest" kuanflow --version` → `kuanflow 0.1.0.dev0` (no `#subdirectory`); VERSION bump → `uv run kuanflow --version` → `0.2.0rc1`. |
+| ADRs vs code | PASS | ADR-0001 decision 3 rewritten (R2 evidence; S2 marked historical); ADR-0002 status Accepted. |
+
+## Verdict: PASS

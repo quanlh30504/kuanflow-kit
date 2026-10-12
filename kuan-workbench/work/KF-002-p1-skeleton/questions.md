@@ -1,6 +1,6 @@
 ---
 work: KF-002-p1-skeleton
-status: answered (Gate P1, 2026-10-12) — ADR-0001 packaging under revision
+status: answered (Gate P1, 2026-10-12)
 ---
 # Questions raised in P1
 
@@ -33,5 +33,6 @@ are as security-sensitive as `hooks/` (PKG §15). Contract C8a allows this extra
 - Q-26 → **B** (internal synthetic tags so a downgrade is a Copier upgrade); A is the fallback if the P6 spike fails.
 - Q-27 → **accepted** (no `_migrations` in `copier.yml`; CLI-only migrations).
 - Q-28 → **A** (keep the `plugins/kuanflow/scripts/` CODEOWNERS rule).
-- ADR-0002 (Copier engine) → pending explicit confirmation. ADR-0001 → user asked for the most standard / maintainable option for version + packaging;
-  proposal pending (root `pyproject.toml`, see plan.md).
+- ADR-0002 (Copier engine) → **accepted**.
+- ADR-0001 → **accepted with revision R2**: root `pyproject.toml`, built-in `force-include`, plain git install URL
+  (user asked for the most standard / maintainable option; see plan.md "Gate P1 change R2").

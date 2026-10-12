@@ -2,7 +2,7 @@
 work: KF-002-p1-skeleton
 phase: P1 — Skeleton & tooling
 parent_plan: kuan-workbench/work/KF-001-plan/plan.md
-status: in progress — Gate P1 change R2 (root packaging)
+status: done — Gate P1 passed (2026-10-12)
 ---
 # P1 — Skeleton & tooling
 
@@ -116,9 +116,9 @@ C11. **Built artefacts** (`python -m hatchling build`): wheel contains `kuanflow
 
 | ID | Role | Files | Status |
 |---|---|---|---|
-| R2.0 | Test Engineer | `cli/tests/test_semver.py` (renamed), `cli/tests/test_hatch_build.py`, `cli/tests/test_version.py`, `tests/test_tooling_contracts.py`, `tests/test_check_versions.py`, `tests/test_packaging.py` (new) | [ ] |
+| R2.0 | Test Engineer | `cli/tests/test_semver.py` (renamed), `cli/tests/test_hatch_build.py`, `cli/tests/test_version.py`, `tests/test_tooling_contracts.py`, `tests/test_check_versions.py`, `tests/test_packaging.py` (new) | [x] done (7a6d4bb) |
 | R2.1 | CLI Eng | `pyproject.toml`, `uv.lock`, `hatch_build.py`, `cli/src/kuanflow_cli/semver.py`, remove `cli/{pyproject.toml,uv.lock,hatch_build.py,semver_pep440.py,.gitignore}`, ADR-0001 | [ ] |
-| R2.2 | Release/CI | `tests/check_versions.py`, `Makefile`, `.github/workflows/ci.yml`, `CHANGELOG.md` | [ ] |
+| R2.2 | Release/CI | `tests/check_versions.py`, `Makefile`, `.github/workflows/ci.yml` (no change needed), `CHANGELOG.md` | [x] done (9bb5283) |
 
 ## Verify (phase exit)
 `make verify` exit 0; RED run of T1.0 recorded below; ADR-0001/0002 written.
@@ -140,13 +140,14 @@ C11. **Built artefacts** (`python -m hatchling build`): wheel contains `kuanflow
 - D-P1-4: ruff excludes `*.md` from formatting (ruff formats code blocks in Markdown docs we must not edit).
 
 ## DoD (phase exit)
-- [x] `make verify` exit 0 (505 passed after F3 removed 4 helper cases, bats 3/3, checkers silent); also pytest on Python 3.11.
-- [x] RED recorded for T1.0 and FX1.0; GREEN recorded.
-- [x] Re-review PASS (review.md, second section); all high/med findings fixed, lows fixed or recorded (Q-28).
-- [x] ADR-0001 and ADR-0002 written and consistent with the code.
+- [x] `make verify` exit 0 (516 passed, bats 3/3, checkers silent); pytest on Python 3.11 516 passed.
+- [x] RED recorded for T1.0, FX1.0, R2.0; GREEN recorded.
+- [x] Re-reviews PASS (review.md sections 2 and 3); all high/med findings fixed, lows fixed or answered (Q-28).
+- [x] ADR-0001 (decision 3 revised, R2) and ADR-0002 accepted at Gate P1.
 - [x] VERSION `0.1.0-dev`; `check_versions.py --tag v0.1.0-dev` exit 0; tag `v0.1.0-dev` (local, not pushed).
-- [ ] Gate P1: user accepts ADR-0001 + ADR-0002 and answers Q-26, Q-27, Q-28.
+- [x] Gate P1: Q-26 → B, Q-27 accepted, Q-28 → A, ADR-0001 + ADR-0002 accepted.
 
 ## Status (update before any context reset)
-- P1 complete up to Gate P1. Tag `v0.1.0-dev` created locally.
-- NEXT (on resume): Gate P1 answers → record in questions.md → start P2 (KF-003) / P3 (KF-004) per KF-001 plan.
+- P1 DONE. Tag `v0.1.0-dev` re-created on the final P1 commit (local only).
+- NEXT (on resume): start P2 (KF-003) and P3 (KF-004) per KF-001 plan — create their work folders and contracts,
+  tests first. Note for all later tasks: commands are `uv run --locked …` from the repo root (C7r).
