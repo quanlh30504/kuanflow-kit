@@ -33,5 +33,5 @@ are as security-sensitive as `hooks/` (PKG §15). Contract C8a allows this extra
 - Q-26 → **B** (internal synthetic tags so a downgrade is a Copier upgrade); A is the fallback if the P6 spike fails.
 - Q-27 → **accepted** (no `_migrations` in `copier.yml`; CLI-only migrations).
 - Q-28 → **A** (keep the `plugins/kuanflow/scripts/` CODEOWNERS rule).
-- ADR-0002 → accepted. ADR-0001 → user asked for the most standard / maintainable option for version + packaging;
+- ADR-0002 (Copier engine) → pending explicit confirmation. ADR-0001 → user asked for the most standard / maintainable option for version + packaging;
   proposal pending (root `pyproject.toml`, see plan.md).
