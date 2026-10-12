@@ -10,7 +10,7 @@ readme = { text = "Kuanflow CLI. See https://github.com/<org>/kuanflow.", conten
 requires-python = ">=3.11"
 license = "Apache-2.0"
 dependencies = [
-  "copier>=9.18",
+  "copier>=9.18.2,<10",
   "typer>=0.27",
   "pyyaml>=6.0",
   "tomlkit>=0.15",
