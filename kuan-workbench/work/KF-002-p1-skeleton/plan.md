@@ -2,7 +2,7 @@
 work: KF-002-p1-skeleton
 phase: P1 — Skeleton & tooling
 parent_plan: kuan-workbench/work/KF-001-plan/plan.md
-status: in progress
+status: done — awaiting Gate P1
 ---
 # P1 — Skeleton & tooling
 
@@ -56,9 +56,9 @@ C8. **CHANGELOG.md** — Keep a Changelog format, has `## [Unreleased]` section.
 |---|---|---|---|---|
 | T1.1 | Coordinator | docs rename | — | [x] done (commit 0058fac) |
 | T1.0 | Test Engineer | `cli/tests/test_version.py`, `tests/test_layout.py`, `tests/test_check_versions.py`, `tests/test_check_skills_stub.py`, `tests/bats/smoke.bats` | contracts | [x] done (7b5cd51) |
-| T1.2+T1.4+S2 [x] 584e84a | CLI Engineer | `cli/**`, `ruff.toml`, `pytest.ini`, layout `.gitkeep`/`__init__.py` (C6 dirs except tests/, .github/), `docs/adr/0001-foundations.md` | T1.0 | [ ] |
-| T1.3 [x] 2ff7e79 | Release/CI Engineer | `VERSION`, `CHANGELOG.md`, `CODEOWNERS`, `Makefile`, `.github/workflows/ci.yml`, `tests/check_versions.py`, `tests/check_skills.py` | T1.0 | [ ] |
-| S1 [x] f4103d0 | CLI Engineer (spike) | scratch only + `docs/adr/0002-copier-engine.md` | — | [ ] |
+| T1.2+T1.4+S2 | CLI Engineer | `cli/**`, `ruff.toml`, `pytest.ini`, layout `.gitkeep`/`__init__.py` (C6 dirs except tests/, .github/), `docs/adr/0001-foundations.md` | T1.0 | [x] done (584e84a) |
+| T1.3 | Release/CI Engineer | `VERSION`, `CHANGELOG.md`, `CODEOWNERS`, `Makefile`, `.github/workflows/ci.yml`, `tests/check_versions.py`, `tests/check_skills.py` | T1.0 | [x] done (2ff7e79) |
+| S1 | CLI Engineer (spike) | scratch only + `docs/adr/0002-copier-engine.md` | — | [x] done (f4103d0) |
 
 Parallel: after T1.0 merges, {T1.2+T1.4+S2, T1.3, S1} run in parallel worktrees (disjoint paths).
 
@@ -89,9 +89,9 @@ C10. `kuanflow` with no arguments prints help; exit code not contracted in P1 (F
 
 | ID | Role | Files | Status |
 |---|---|---|---|
-| FX1.0 [x] 66c038a | Test Engineer | `cli/tests/test_semver_pep440.py`, `cli/tests/test_hatch_build.py`, `tests/test_tooling_contracts.py`, additions to `tests/test_check_versions.py`, `tests/test_check_skills_stub.py` | [ ] |
-| FX1.1 [x] 704c66a | CLI Engineer | `cli/semver_pep440.py`, `cli/hatch_build.py`, `cli/pyproject.toml` (+hatchling dev), `cli/uv.lock`, `docs/adr/0001-foundations.md` (fix F4) | [ ] |
-| FX1.2 [x] 20b1ee4 | Release/CI | `tests/check_versions.py` (use C9 module, C4a), `tests/check_skills.py` (C5a), `Makefile` (C7a), `.github/workflows/ci.yml` (C7a) | [ ] |
+| FX1.0 | Test Engineer | `cli/tests/test_semver_pep440.py`, `cli/tests/test_hatch_build.py`, `tests/test_tooling_contracts.py`, additions to `tests/test_check_versions.py`, `tests/test_check_skills_stub.py` | [x] done (66c038a); F3/C10 follow-up c903fa0 |
+| FX1.1 | CLI Engineer | `cli/semver_pep440.py`, `cli/hatch_build.py`, `cli/pyproject.toml` (+hatchling dev), `cli/uv.lock`, `docs/adr/0001-foundations.md` (fix F4) | [x] done (704c66a) |
+| FX1.2 | Release/CI | `tests/check_versions.py` (use C9 module, C4a), `tests/check_skills.py` (C5a), `Makefile` (C7a), `.github/workflows/ci.yml` (C7a) | [x] done (20b1ee4) |
 
 ## Verify (phase exit)
 `make verify` exit 0; RED run of T1.0 recorded below; ADR-0001/0002 written.
@@ -112,11 +112,14 @@ C10. `kuanflow` with no arguments prints help; exit code not contracted in P1 (F
   job; recorded here (review F8).
 - D-P1-4: ruff excludes `*.md` from formatting (ruff formats code blocks in Markdown docs we must not edit).
 
+## DoD (phase exit)
+- [x] `make verify` exit 0 (505 passed after F3 removed 4 helper cases, bats 3/3, checkers silent); also pytest on Python 3.11.
+- [x] RED recorded for T1.0 and FX1.0; GREEN recorded.
+- [x] Re-review PASS (review.md, second section); all high/med findings fixed, lows fixed or recorded (Q-28).
+- [x] ADR-0001 and ADR-0002 written and consistent with the code.
+- [x] VERSION `0.1.0-dev`; `check_versions.py --tag v0.1.0-dev` exit 0; tag `v0.1.0-dev` (local, not pushed).
+- [ ] Gate P1: user accepts ADR-0001 + ADR-0002 and answers Q-26, Q-27, Q-28.
+
 ## Status (update before any context reset)
-- All P1 tasks merged; GREEN `make verify` exit 0 (77 passed, bats 3/3) at 5612e3a. Review FAIL (6 rows).
-- Fix round 1: FX1.0 tests merged. RED: `22 failed, 212 passed, 274 errors` (cli/semver_pep440.py missing, hatchling not
-  in dev group, no `--locked`, no CI matrix, checker accepts bare `-rc/-alpha/-beta/-a/-b`, multi-line VERSION, non-object JSON).
-- FX1.1 + FX1.2 done inline by the coordinator (small, disjoint; no worktrees). GREEN above.
-- NEXT (on resume): re-review (Adversarial Reviewer) of `c1d0c78..HEAD` against review.md F1–F10 → DoD →
-  tag v0.1.0-dev → Gate P1 (ask Q-26, Q-27, D-P1-2). Open low item: F3 (`cli/tests/test_version.py`
-  tautological helper) is Test Engineer scope, still present.
+- P1 complete up to Gate P1. Tag `v0.1.0-dev` created locally.
+- NEXT (on resume): Gate P1 answers → record in questions.md → start P2 (KF-003) / P3 (KF-004) per KF-001 plan.

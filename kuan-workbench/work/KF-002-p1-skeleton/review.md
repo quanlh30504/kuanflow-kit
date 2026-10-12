@@ -97,3 +97,24 @@ Required to pass:
 The low findings can be recorded and deferred.
 
 ## Verdict: FAIL
+
+---
+
+# Re-review — fix round 1 — `c1d0c78..7798b35`
+
+Reviewer: Coordinator (inline; mutation replay in a scratch clone per mutation, `make verify` as oracle).
+
+| Finding | Status | Evidence |
+|---|---|---|
+| F1 mapping split | **fixed** (704c66a, 20b1ee4) | One converter `cli/semver_pep440.py`, loaded by path from `hatch_build.py` and `check_versions.py`. Repro `VERSION=1.2.3-rc; python3 tests/check_versions.py --tag v1.2.3-rc` → `not a supported SemVer version: '1.2.3-rc'`, exit 1. |
+| F2 unguarded contract | **fixed** (66c038a) | Mutations, each in a fresh clone: M1 drop copier+jsonschema, M2 ruff 120/py313, M3 `rc`→`.post`, M4 `check_cli` always `[]`, M5 drop 3 verify steps, M6 gut CODEOWNERS, M7 gut CHANGELOG, M8 accept missing `description`, M9 hatch own mapping, M10 drop `--locked`, M11 CI without 3.11, M12 accept leading zeros, M14 bare `kuanflow` without help → **all killed**. M13 (drop explicit multi-line VERSION check) survives as an *equivalent mutant*: `is_semver` fullmatch rejects any embedded newline, exit stays 1; only the message changes. |
+| F3 tautological helper | **fixed** (c903fa0) | `cli/tests/test_version.py` now loads the real `cli/semver_pep440.py`; local helper removed. |
+| F4 ADR-0001 vs code | **fixed** (704c66a) | Table, copier pin, lookup order, shared converter; `hatchling>=1.27` marked TODO(verify). |
+| F5 sdist VERSION lookup | **fixed** (704c66a) | `<cli>` first. Trap `VERSION=9.9.9` above unpacked sdist → wheel `0.1.0.dev0`. |
+| F6 CODEOWNERS extra rule | **recorded** | D-P1-2 → questions.md Q-28 (Gate P1). |
+| F7 `--locked`, CI Python | **fixed** (20b1ee4) | `make -n verify` shows `--locked` on every `uv run`; CI matrix 3.11/3.13 via `UV_PYTHON`; local 3.11 run `508 passed`. |
+| F8 process | **fixed** | plan.md task statuses, GREEN evidence, decisions log updated. |
+| F9 C4 edge cases | **fixed** (20b1ee4) | Multi-line VERSION, non-object/invalid JSON → one-line error, exit 1 (C4a tests). |
+| F10 bare `kuanflow` | **contracted** (C10, c903fa0) | Prints help; exit code deferred to P4. |
+
+## Verdict: PASS
