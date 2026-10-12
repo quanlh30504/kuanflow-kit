@@ -21,10 +21,13 @@ command that assumes a root `pyproject.toml`. A wheel built from `cli/` does not
    | SemVer | PEP 440 |
    |---|---|
    | `X.Y.Z` | `X.Y.Z` |
-   | `X.Y.Z-dev` | `X.Y.Z.dev0` |
-   | `X.Y.Z-alpha.N` / `-beta.N` / `-rc.N` | `X.Y.ZaN` / `X.Y.ZbN` / `X.Y.ZrcN` |
+   | `X.Y.Z-dev` / `-dev.N` | `X.Y.Z.dev0` / `X.Y.Z.devN` |
+   | `X.Y.Z-alpha.N` (`-a.N`) / `-beta.N` (`-b.N`) / `-rc.N` | `X.Y.ZaN` / `X.Y.ZbN` / `X.Y.ZrcN` |
 
-   Other pre-release forms are rejected at build time. Implementation: a hatchling **metadata hook**
+   No leading zeros in `X`, `Y`, `Z` or `N`. Build metadata (`+…`), bare `-rc`/`-alpha`/`-beta` and any other
+   pre-release form are rejected. The table lives in exactly one place, `cli/semver_pep440.py` (stdlib only,
+   contract C9); both the build and the release gate `tests/check_versions.py` load it by file path, so they
+   cannot disagree. Implementation: a hatchling **metadata hook**
    (`cli/hatch_build.py`, `[tool.hatch.metadata.hooks.custom]`). At runtime `kuanflow_cli.__version__` =
    `importlib.metadata.version("kuanflow-cli")`, so `kuanflow --version` always reports the installed metadata.
    `[tool.uv] cache-keys` includes `../VERSION`, so `uv run` rebuilds the editable install after a bump.
@@ -33,7 +36,8 @@ command that assumes a root `pyproject.toml`. A wheel built from `cli/` does not
    - wheel: `../plugins/kuanflow` -> `kuanflow_cli/_content/plugins/kuanflow`,
      `../templates` -> `kuanflow_cli/_content/templates`;
    - sdist: `../VERSION`, `../plugins/kuanflow`, `../templates` copied to the sdist root, so a wheel built from the
-     sdist (what `uv build` does) is identical. The hooks look for `VERSION` in `<cli>/..` first, then `<cli>`.
+     sdist (what `uv build` does) is identical. The hooks look for `VERSION` in `<cli>` first (unpacked sdist), then `<cli>/..` (repo checkout), so a stray
+     `VERSION` above an unpacked sdist is ignored.
    - editable wheel: nothing bundled (content is read from the checkout).
 
    Install command: `uvx --from "git+https://github.com/<org>/kuanflow.git@vX.Y.Z#subdirectory=cli" kuanflow`
@@ -139,7 +143,7 @@ kuanflow 0.1.0.dev0
 | Kiro (`kiro-cli --version`) | 2.29.0 |
 | Bats (`bats --version`) | 1.10.0 |
 
-Lower bounds in `cli/pyproject.toml` follow the resolved versions (`copier>=9.18`, `typer>=0.27`, `pyyaml>=6.0`,
+Lower bounds in `cli/pyproject.toml` follow the resolved versions (`copier>=9.18.2,<10` per ADR-0002, `typer>=0.27`, `pyyaml>=6.0`,
 `tomlkit>=0.15`, `rich>=15.0`, `jsonschema>=4.26`); `cli/uv.lock` pins the exact set.
 
 ## Consequences
@@ -151,4 +155,6 @@ Lower bounds in `cli/pyproject.toml` follow the resolved versions (`copier>=9.18
 - Editable installs never contain `_content`; the runtime locator must support both modes (decision 4) and is
   tested in both when implemented.
 - `kuanflow --version` reflects installed metadata: after a `VERSION` bump outside `uv run`, re-sync is required.
-- `check_versions.py` (T1.3) can rely on the same SemVer -> PEP 440 table above.
+- `check_versions.py` (T1.3) imports the same converter (`cli/semver_pep440.py`), so a version the gate
+  accepts is a version the package can build.
+- TODO(verify): `build-system requires hatchling>=1.27` — only 1.30–1.32 were observed; the lower bound is untested.

@@ -23,6 +23,7 @@ kuanflow = "kuanflow_cli.main:app"
 
 [dependency-groups]
 dev = [
+  "hatchling>=1.27", # tests import cli/hatch_build.py
   "pytest>=9.1",
   "pytest-cov>=7.1",
   "ruff>=0.17",
@@ -38,8 +39,8 @@ path = "hatch_build.py"
 packages = ["src/kuanflow_cli"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/kuanflow_cli", "hatch_build.py", "pyproject.toml"]
+include = ["src/kuanflow_cli", "hatch_build.py", "semver_pep440.py", "pyproject.toml"]
 
 [tool.uv]
 # Re-build the editable install when the version source changes.
-cache-keys = [{ file = "pyproject.toml" }, { file = "hatch_build.py" }, { file = "../VERSION" }]
+cache-keys = [{ file = "pyproject.toml" }, { file = "hatch_build.py" }, { file = "semver_pep440.py" }, { file = "../VERSION" }]
