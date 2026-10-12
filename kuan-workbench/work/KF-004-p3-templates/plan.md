@@ -204,6 +204,36 @@ C11a. **Wheel** (amends C11): also contains `kuanflow_cli/_content/VERSION`,
 | T3.5 | Template Eng (knowledge) | `templates/knowledge-repo/**` | T3.1 | [ ] |
 | T3.6 | Coordinator | `Makefile` (check_schema step), CHANGELOG, VERSION `0.3.0-dev` | all | [ ] |
 
+## Fix round 1 (after review FAIL — see review.md F1–F7)
+
+Contract amendments (tests are written against these):
+
+C24a. **Inherited git env** — `assemble_template` ignores inherited `GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`
+      (and every other `GIT_*`): with them pointing at another repo, that repo's HEAD, tags and index are unchanged.
+C26a. **List answers validated** — `protected_paths` and `services` have a Copier `validator` that rejects anything
+      but a list of strings; `render()` with a plain string or a mapping for either raises (no files written into
+      `dst` beyond the cache).
+C28a. **Merge-friendly `debug`** — `debug.budget` is a block mapping; a blank line between any two keys of `debug`
+      and of `debug.budget`. A real 3-way update (render v1 into a git repo with `.kuanflow/cache/` ignored, commit,
+      local edit of one leaf, upstream v2 edits a *different* leaf, `copier.run_update(…, conflict="inline")`)
+      leaves no unmerged path (`git ls-files -u` empty) for every pair of leaves of `commands`, `paths`, `debug`.
+C28b. **Readable non-ASCII** — non-ASCII characters appear literally in `config.yaml` (`β`, not `\u03b2`);
+      U+2028, U+2029, U+0085 and control characters stay escaped. Every string answer round-trips, including
+      `a"b'c\d: #e` and values with newlines.
+C31a. **Knowledge repo `.gitignore`** — rendered `.gitignore` contains `.kuanflow/cache/` and `index.json`; after
+      rendering into a fresh `git init` dir, `git status --porcelain` shows nothing under `.kuanflow/cache/`.
+C32a. `status: published` and `status: Approved` are rejected (exact, case-sensitive values).
+C34a. `stale-wiki-check.sh` does not import modules from the working directory (planted `yaml.py` → no marker).
+
+| ID | Role | Files | Status |
+|---|---|---|---|
+| FX1.0 | Test Eng | `cli/tests/test_engine_assemble.py` (C24a, unknown-template keeps dest), `cli/tests/template/test_render_project.py` (C26a, C28a, C28b), `cli/tests/template/test_render_knowledge.py` (C31a, C32a), `tests/bats/stale-wiki-check.bats` (C34a) | [ ] |
+| FX1.1 | Template Eng | `templates/project/copier.yml`, `templates/project/template/.kuanflow/config.yaml.jinja`, `templates/knowledge-repo/template/.gitignore` (+ `copier.yml` if needed) | [ ] |
+
+Carried to P4/P6 (review F8, no P3 change): render over an existing different file raises
+`InteractiveSessionError` (P4 pre-check/overwrite); `.worktreeinclude` block only when `use_orca`; empty
+`project_name` fails the schema (P4 validates answers); `source_paths` are git pathspecs.
+
 ## Verify (phase exit)
 `make verify` exit 0 (incl. `check_schema.py`); render tests green for 5 stacks; knowledge render + frontmatter +
 index + stale-wiki bats green; RED of T3.1 recorded; adversarial review PASS.
