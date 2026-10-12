@@ -2,7 +2,7 @@
 work: KF-003-p2-content
 phase: P2 — Content source
 parent_plan: kuan-workbench/work/KF-001-plan/plan.md
-status: in progress
+status: done — awaiting Gate P2
 ---
 # P2 — Content source
 
@@ -130,15 +130,15 @@ C22. **`plugins/kuanflow/README.md`** names every skill, agent and command, and 
 | ID | Role | Files | Deps | Status |
 |---|---|---|---|---|
 | T2.0 | Coordinator | this plan (contracts C12–C22) | P1 | [x] |
-| T2.1 | Test Eng | `tests/bats/{guard-bash,guard-protected-paths,load-config,collect-context}.bats`, `tests/bats/helpers/common.bash` | C12–C15, C21 | [ ] |
-| T2.2a | Test Eng | `tests/test_check_skills.py`, `tests/test_plugin_content.py` | C16–C22 | [ ] |
-| T2.2 | Release/CI | `tests/check_skills.py` (S1–S5) | T2.2a | [ ] |
-| T2.3 | Script Eng | `plugins/kuanflow/scripts/{load-config,guard-bash,guard-protected-paths}.sh` | T2.1 | [ ] |
-| T2.4 | Content Eng | `plugins/kuanflow/skills/**` (except `debug-incident/scripts/`) | T2.2a | [ ] |
-| T2.5 | Content Eng | `plugins/kuanflow/agents/*.md` | T2.2a | [ ] |
-| T2.6 | Content Eng | `plugins/kuanflow/commands/*.md` | T2.4 | [ ] |
-| T2.7 | Script Eng | `plugins/kuanflow/skills/debug-incident/scripts/collect_context.sh` | T2.1, schema | [ ] |
-| T2.8 | Content Eng | `plugins/kuanflow/README.md` | T2.4–T2.6 | [ ] |
+| T2.1 | Test Eng | `tests/bats/{guard-bash,guard-protected-paths,load-config,collect-context}.bats`, `tests/bats/helpers/common.bash` | C12–C15, C21 | [x] |
+| T2.2a | Test Eng | `tests/test_check_skills.py`, `tests/test_plugin_content.py` | C16–C22 | [x] |
+| T2.2 | Release/CI | `tests/check_skills.py` (S1–S5) | T2.2a | [x] |
+| T2.3 | Script Eng | `plugins/kuanflow/scripts/{load-config,guard-bash,guard-protected-paths}.sh` | T2.1 | [x] |
+| T2.4 | Content Eng | `plugins/kuanflow/skills/**` (except `debug-incident/scripts/`) | T2.2a | [x] |
+| T2.5 | Content Eng | `plugins/kuanflow/agents/*.md` | T2.2a | [x] |
+| T2.6 | Content Eng | `plugins/kuanflow/commands/*.md` | T2.4 | [x] |
+| T2.7 | Script Eng | `plugins/kuanflow/skills/debug-incident/scripts/collect_context.sh` | T2.1, schema | [x] |
+| T2.8 | Content Eng | `plugins/kuanflow/README.md` | T2.4–T2.6 | [x] |
 
 Run inline by the coordinator (no sub-agents this phase; the user did not ask for them).
 
@@ -157,14 +157,20 @@ C13c. Explicit cases: `git push origin +main` blocks (force refspec); `more .env
 
 | ID | Role | Files | Status |
 |---|---|---|---|
-| FX1.0 | Test Eng | `tests/bats/guard-bash.bats`, `tests/bats/{guard-protected-paths,load-config,collect-context}.bats` (C12a) | [ ] |
-| FX1.1 | Script Eng | `plugins/kuanflow/scripts/guard-bash.sh` (C13a, C13b) | [ ] |
+| FX1.0 | Test Eng | `tests/bats/guard-bash.bats`, `tests/bats/{guard-protected-paths,load-config,collect-context}.bats` (C12a) | [x] |
+| FX1.1 | Script Eng | `plugins/kuanflow/scripts/guard-bash.sh` (C13a, C13b) | [x] |
 
 ## Verify (phase exit)
 `make verify` exit 0 (check_skills now runs the full rules on real content); bats green for every guard rule;
 RED of T2.1/T2.2a recorded; adversarial review PASS; reviewer compares skills against PB text.
 
 ## Evidence log
+- RED (e94863a): pytest `195 failed, 21 passed, 1 skipped, 7 errors`; bats `102 not ok, 3 ok`.
+- GREEN (358713f): `make verify` exit 0 — `775 passed`, bats `1..105` ok, check_skills and check_versions silent.
+- Review (review.md): FAIL — 22 mutations, 5 survived; `bash -c`/`eval` bypass. Fix round 1: RED (dd111d1)
+  5 bats failing; GREEN after FX1.1: `make verify` exit 0, bats `1..118`; all survivors + M23 killed.
+- Test fixes after RED, both recorded: 6f1556c (bats stderr temp file; C17e made stricter), fix-round helper
+  `json_field` now `python3 -I` (it imported the planted module).
 
 ## Decisions log
 - D-P2-1: Regex tightening vs PKG §18.4 sample (C13 B2/B5/B7): whole-token branch match (PKG sample blocks
@@ -172,6 +178,19 @@ RED of T2.1/T2.2a recorded; adversarial review PASS; reviewer compares skills ag
 - D-P2-2: `load-config.sh` compares versions with SemVer core + prerelease (PKG sample crashes on `0.2.0-dev` and
   would print a false warning). `min_version` read with PyYAML, regex fallback.
 - D-P2-3: Skill/command content is English (repo rule); PB templates (§13.2, §13.5) are translated, structure kept.
+- D-P2-4: Content additions beyond PB/PKG → Q-31 (state.json format, fintech skip, test map, workflows gate).
+- D-P2-5: guard-bash scans quoted words as commands (C13a) → false positives on quoted text, as in the PKG
+  sample → Q-29.
+- D-P2-6: Note for P3/P4: the wheel must keep the executable bit of the scripts, or the installer must
+  `chmod +x` them (SCR-06); not checked in P2.
+
+## DoD (phase exit)
+- [x] `make verify` exit 0 (pytest 775, bats 118, check_skills clean on real content, check_versions).
+- [x] RED recorded for T2.1/T2.2a and FX1.0; GREEN recorded.
+- [x] Review FAIL → fix round 1 → re-review PASS (review.md).
+- [x] VERSION `0.2.0-dev`; `check_versions.py --tag v0.2.0-dev` exit 0; tag `v0.2.0-dev` (local, not pushed).
+- [ ] Gate P2: Q-29, Q-30, Q-31.
 
 ## Status (update before any context reset)
-- Contracts written. Next: T2.1 + T2.2a tests (RED), then implementation.
+- P2 implemented, re-review PASS, tagged `v0.2.0-dev` locally. Waiting for Gate P2 (questions.md Q-29..Q-31).
+- NEXT after the gate: P3 (KF-004) templates — tests first; remember D-P2-6 (exec bit).

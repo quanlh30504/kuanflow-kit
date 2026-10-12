@@ -34,3 +34,23 @@ except this file.
 3. Content that contradicts PB → checked, none found (rows 7, 8).
 
 ## Verdict: FAIL — fix F1–F4, then re-review.
+
+---
+
+# Re-review — fix round 1 — `dd111d1..HEAD`
+
+Reviewer: Coordinator (inline; fresh clone per mutation, same oracle).
+
+| Finding | Status | Evidence |
+|---|---|---|
+| F1 wrapped commands | **fixed** (C13a) | `bash -c "git push --force origin main"`, `sh -c 'rm -rf /'`, `eval "git push origin main"`, doubly wrapped `cat .env` → exit 2. New mutation M23 (disable the nested scan) → killed by bats. |
+| F2 module hijack untested | **fixed** (C12a) | One bats case per script plants `json.py`/`yaml.py`; M2, M17 → killed. (The first RED run also exposed the test helper importing the planted module; helper now uses `python3 -I`.) |
+| F3 `+main`, `more` | **fixed** (C13c) | M13, M16 → killed. |
+| F4 `rm -r` without `-f` | **fixed** (C13b) | `rm -r ~` → exit 2, `rm -r ./build` → exit 0; reverse mutation (require `-f` again) → killed. |
+| Verify suite | PASS | `make verify` exit 0; bats `1..118` all ok. |
+
+Known limitation (recorded as Q-29, not a defect against the contract): quoted text is scanned too, so
+`git commit -m "docs: explain git push origin main"` is blocked. The PKG §18.4 grep sample has the same
+false positive.
+
+## Verdict: PASS
