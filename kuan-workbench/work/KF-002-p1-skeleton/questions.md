@@ -20,3 +20,11 @@ ADR-0002 confirms that `unsafe=True` is needed only when the template has `_task
 `_jinja_extensions`. Q-09 already chose CLI-only migrations, so the template will NOT contain the `_migrations`
 example from PKG §6.3. This is recorded here because it is a visible deviation from the doc sample.
 - **Recommend:** accept (no action).
+
+## Q-28 CODEOWNERS rule for `plugins/kuanflow/scripts/` (D-P1-2, review F6)
+PKG §14 has no rule for `plugins/kuanflow/scripts/`. P1 adds
+`plugins/kuanflow/scripts/ @<org>/kuanflow-maintainers @<org>/security`, because the guard scripts that hooks call
+are as security-sensitive as `hooks/` (PKG §15). Contract C8a allows this extra line.
+- A. Keep the rule (deviation from PKG §14, recorded here).
+- B. Remove it and follow PKG §14 exactly.
+- **Recommend A.**
