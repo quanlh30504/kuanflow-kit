@@ -55,7 +55,7 @@ C8. **CHANGELOG.md** — Keep a Changelog format, has `## [Unreleased]` section.
 | ID | Role | Files | Deps | Status |
 |---|---|---|---|---|
 | T1.1 | Coordinator | docs rename | — | [x] done (commit 0058fac) |
-| T1.0 | Test Engineer | `cli/tests/test_version.py`, `tests/test_layout.py`, `tests/test_check_versions.py`, `tests/test_check_skills_stub.py`, `tests/bats/smoke.bats` | contracts | [ ] |
+| T1.0 | Test Engineer | `cli/tests/test_version.py`, `tests/test_layout.py`, `tests/test_check_versions.py`, `tests/test_check_skills_stub.py`, `tests/bats/smoke.bats` | contracts | [x] done (7b5cd51) |
 | T1.2+T1.4+S2 | CLI Engineer | `cli/**`, `ruff.toml`, `pytest.ini`, layout `.gitkeep`/`__init__.py` (C6 dirs except tests/, .github/), `docs/adr/0001-foundations.md` | T1.0 | [ ] |
 | T1.3 | Release/CI Engineer | `VERSION`, `CHANGELOG.md`, `CODEOWNERS`, `Makefile`, `.github/workflows/ci.yml`, `tests/check_versions.py`, `tests/check_skills.py` | T1.0 | [ ] |
 | S1 | CLI Engineer (spike) | scratch only + `docs/adr/0002-copier-engine.md` | — | [ ] |
@@ -66,9 +66,10 @@ Parallel: after T1.0 merges, {T1.2+T1.4+S2, T1.3, S1} run in parallel worktrees 
 `make verify` exit 0; RED run of T1.0 recorded below; ADR-0001/0002 written.
 
 ## Evidence log
-(filled during the phase)
+- RED (T1.0, before implementation): `uvx --with typer --with pyyaml pytest -q cli/tests tests` →
+  `70 failed, 6 passed, 1 skipped`; `bats tests/bats` → `not ok 1..3`. 77 pytest + 3 bats tests.
 
 ## Decisions log
 
 ## Status (update before any context reset)
-- T1.1 done. Next: T1.0 tests (Test Engineer).
+- T1.1, T1.0 done. S1 spike running. Next: T1.2+T1.4+S2 (CLI Eng) ∥ T1.3 (Release/CI).
