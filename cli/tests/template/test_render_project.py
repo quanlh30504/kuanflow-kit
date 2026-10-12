@@ -416,6 +416,102 @@ def test_c28_yaml_special_values_round_trip(tmp_path: Path) -> None:
     assert cfg["debug"]["services"] == data["services"]
 
 
+# Every str answer and where it lands in config.yaml.
+STR_ANSWERS: dict[str, tuple[str, ...]] = {
+    "project_name": ("project", "name"),
+    "build_cmd": ("commands", "build"),
+    "test_cmd": ("commands", "test"),
+    "verify_cmd": ("commands", "verify"),
+    "single_test_cmd": ("commands", "single_test"),
+    "lint_cmd": ("commands", "lint"),
+    "ticket_pattern": ("work", "ticket_pattern"),
+    "knowledge_repo": ("knowledge", "repo"),
+    "jira_project_key": ("integrations", "jira_project_key"),
+    "kuanflow_version": ("kuanflow", "min_version"),
+}
+HOSTILE = {
+    "quotes": "a\"b'c\\d: #e",
+    "newline": "line one: x\n  - two # y\n'three\"",
+    "jinja": "{{ 7*7 }} {% raw %}x{% endraw %} {# c #}",
+    "unicode": "Dịch vụ β \u2028 \u2029 \u0085 \x01 \x7f end",
+}
+
+
+def _dig(data: dict[str, Any], path: tuple[str, ...]) -> Any:
+    for key in path:
+        data = data[key]
+    return data
+
+
+@pytest.mark.parametrize("kind", list(HOSTILE))
+def test_c28b_every_string_answer_round_trips(tmp_path: Path, kind: str) -> None:
+    value = HOSTILE[kind]
+    data: dict[str, Any] = {key: f"{value} [{key}]" for key in STR_ANSWERS}
+    data["stack"] = "node"
+    data["protected_paths"] = [value, f"{value}/**"]
+    data["services"] = [value, f"svc {value}"]
+    dst = tmp_path / "p"
+    engine().render(dst, data)
+    cfg = config(dst)
+    ans = answers_file(dst)
+    for key, path in STR_ANSWERS.items():
+        assert _dig(cfg, path) == data[key], key
+        assert ans[key] == data[key], key
+    assert cfg["protected_paths"] == data["protected_paths"]
+    assert cfg["debug"]["services"] == data["services"]
+    assert ans["protected_paths"] == data["protected_paths"]
+    assert ans["services"] == data["services"]
+    # nothing else changed: same keys as a plain render
+    assert set(cfg) == set(expected_config({"project_name": "x", "stack": "node"}))
+
+
+def test_c28b_non_ascii_written_literally(rendered: dict[str, Path]) -> None:
+    text = (rendered["python"] / ".kuanflow" / "config.yaml").read_text(encoding="utf-8")
+    assert "py-svc: β #1" in text, text
+    assert "\\u03b2" not in text.lower(), text
+
+
+def test_c28b_line_breaks_and_controls_stay_escaped(tmp_path: Path) -> None:
+    name = "Dịch vụ β\u2028x\u2029y\u0085z\x01\x1b\x7f\tq\rr\nend"
+    dst = tmp_path / "p"
+    engine().render(dst, {"project_name": name, "stack": "python"})
+    text = (dst / ".kuanflow" / "config.yaml").read_text(encoding="utf-8")
+    assert "Dịch vụ β" in text, "non-ASCII letters are written literally"
+    for ch in ["\u2028", "\u2029", "\u0085", "\x01", "\x1b", "\x7f", "\t", "\r"]:
+        assert ch not in text, repr(ch)
+    name_lines = [ln for ln in text.splitlines() if ln.lstrip().startswith("name:")]
+    assert len(name_lines) == 1, name_lines
+    assert config(dst)["project"]["name"] == name
+    assert answers_file(dst)["project_name"] == name
+
+
+# --- C26a list answers validated --------------------------------------------------------------
+
+
+@pytest.mark.parametrize("key", ["protected_paths", "services"])
+@pytest.mark.parametrize(
+    "bad",
+    ["src/**", {"a": 1}, [1], ["ok", None], ["ok", ["nested"]], 7],
+    ids=["string", "mapping", "int-item", "null-item", "list-item", "int"],
+)
+def test_c26a_list_answers_validated(tmp_path: Path, key: str, bad: Any) -> None:
+    dst = tmp_path / "p"
+    with pytest.raises(ValueError):
+        engine().render(dst, {"project_name": "x", "stack": "python", key: bad})
+    assert not (dst / ".kuanflow" / "config.yaml").exists()
+    assert tree(dst) == set(), tree(dst)
+
+
+@pytest.mark.parametrize("key", ["protected_paths", "services"])
+@pytest.mark.parametrize("good", [[], ["a"], ["src/**", "**/legacy/**"]])
+def test_c26a_list_answers_accepted(tmp_path: Path, key: str, good: list[str]) -> None:
+    dst = tmp_path / "p"
+    engine().render(dst, {"project_name": "x", "stack": "python", key: good})
+    cfg = config(dst)
+    got = cfg["protected_paths"] if key == "protected_paths" else cfg["debug"]["services"]
+    assert got == good
+
+
 _TOP = re.compile(r"^[A-Za-z_][\w-]*:")
 _CHILD = re.compile(r"^\s+[A-Za-z_][\w-]*:")
 
@@ -452,3 +548,244 @@ def test_c28_config_validates_against_schema(rendered: dict[str, Path], stack: s
     schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
     errors = list(Draft202012Validator(schema).iter_errors(config(rendered[stack])))
     assert not errors, [e.message for e in errors]
+
+
+# --- C28a merge-friendly debug section + real 3-way update ---------------------------------------
+
+
+def _section(lines: list[str], name: str) -> tuple[int, int]:
+    start = lines.index(f"{name}:")
+    end = next((i for i in range(start + 1, len(lines)) if _TOP.match(lines[i])), len(lines))
+    return start, end
+
+
+_DEBUG_KEY = re.compile(r"^  [A-Za-z_][\w-]*:")
+_BUDGET_KEY = re.compile(r"^    [A-Za-z_][\w-]*:")
+
+
+@pytest.mark.parametrize("stack", STACKS)
+def test_c28a_debug_layout(rendered: dict[str, Path], stack: str) -> None:
+    lines = (rendered[stack] / ".kuanflow" / "config.yaml").read_text(encoding="utf-8").splitlines()
+    start, end = _section(lines, "debug")
+    keys = [i for i in range(start + 1, end) if _DEBUG_KEY.match(lines[i])]
+    assert [lines[i].split(":")[0].strip() for i in keys] == [
+        "services",
+        "budget",
+        "allow_prod_log_access",
+    ], lines[start:end]
+    for a, b in zip(keys, keys[1:], strict=False):
+        assert _blank_between(lines, a, b), (lines[a], lines[b])
+    b_start = keys[1]
+    assert lines[b_start].split("#")[0].rstrip() == "  budget:", "budget must be a block mapping"
+    b_keys = [i for i in range(b_start + 1, keys[2]) if _BUDGET_KEY.match(lines[i])]
+    assert [lines[i].split(":")[0].strip() for i in b_keys] == [
+        "max_turns_total",
+        "classification",
+        "subagent",
+        "fix_rounds",
+    ], lines[b_start : keys[2]]
+    for a, b in zip(b_keys, b_keys[1:], strict=False):
+        assert _blank_between(lines, a, b), (lines[a], lines[b])
+
+
+V1, V2 = "0.90.0", "0.91.0"
+GIT_ID = ["-c", "user.name=Kuanflow Test", "-c", "user.email=test@example.com"]
+UPSTREAM_MARK = "# upstream v2 note"
+
+
+def _run_git(repo: Path, *args: str) -> str:
+    import subprocess
+
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env.update({"GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"})
+    proc = subprocess.run(
+        ["git", "-C", str(repo), *GIT_ID, *args],
+        capture_output=True,
+        text=True,
+        check=True,
+        env=env,
+        timeout=60,
+    )
+    return proc.stdout
+
+
+def _copy_content(dst: Path) -> Path:
+    import shutil
+
+    dst.mkdir(parents=True)
+    shutil.copy(REPO_ROOT / "VERSION", dst / "VERSION")
+    shutil.copytree(TEMPLATE, dst / "templates" / "project")
+    shutil.copytree(PLUGIN_SCRIPTS, dst / "plugins" / "kuanflow" / "scripts")
+    return dst
+
+
+def _leaf_line(lines: list[str], section: str, leaf: str) -> int:
+    """Index of the line holding ``leaf`` (dotted below ``section``) in config text."""
+    start, end = _section(lines, section)
+    key = leaf.split(".")[-1]
+    pat = re.compile(rf"^\s+{re.escape(key)}:")
+    hits = [i for i in range(start + 1, end) if pat.match(lines[i])]
+    assert len(hits) == 1, (section, leaf, lines[start:end])
+    return hits[0]
+
+
+_BUDGET_VALUE = re.compile(r"\b(max_turns_total|classification|subagent|fix_rounds): (\d+)")
+
+
+def _upstream_edit(jinja: str, section: str, leaf: str) -> str:
+    """The v2 template change: one leaf of the config template, nothing else."""
+    if leaf.startswith("budget."):
+        key = leaf.split(".")[1]
+        out, n = re.subn(rf"\b{key}: (\d+)", lambda m: f"{key}: {int(m.group(1)) + 100}", jinja)
+        assert n == 1, (leaf, n)
+        return out
+    lines = jinja.split("\n")
+    i = _leaf_line(lines, section, leaf)
+    lines[i] = f"{lines[i]}  {UPSTREAM_MARK}"
+    return "\n".join(lines)
+
+
+def _local_edit(text: str, section: str, leaf: str) -> str:
+    """The user's change in the rendered config.yaml: one leaf, nothing else."""
+    if leaf.startswith("budget."):
+        key = leaf.split(".")[1]
+        out, n = re.subn(rf"\b{key}: (\d+)", lambda m: f"{key}: {int(m.group(1)) + 1}", text)
+        assert n == 1, (leaf, n)
+        return out
+    lines = text.split("\n")
+    i = _leaf_line(lines, section, leaf)
+    if leaf == "services":
+        j = i + 1
+        while j < len(lines) and lines[j].lstrip().startswith("- "):
+            j += 1
+        assert j > i + 1, "fixture must render services as a block list"
+        lines.insert(j, '    - "svc-local"')
+    elif leaf == "allow_prod_log_access":
+        lines[i] = lines[i].replace("false", "true", 1)
+    else:
+        indent = lines[i][: len(lines[i]) - len(lines[i].lstrip())]
+        lines[i] = f'{indent}{leaf}: "local-{leaf}"'
+    return "\n".join(lines)
+
+
+def _expected_local(cfg: dict[str, Any], section: str, leaf: str, before: dict[str, Any]) -> None:
+    sec = cfg[section]
+    if leaf.startswith("budget."):
+        key = leaf.split(".")[1]
+        assert sec["budget"][key] == before[section]["budget"][key] + 1, sec
+    elif leaf == "services":
+        assert sec["services"] == [*before[section]["services"], "svc-local"], sec
+    elif leaf == "allow_prod_log_access":
+        assert sec["allow_prod_log_access"] is True, sec
+    else:
+        assert sec[leaf] == f"local-{leaf}", sec
+
+
+def _expected_upstream(
+    text: str, cfg: dict[str, Any], section: str, leaf: str, before: dict[str, Any]
+) -> None:
+    if leaf.startswith("budget."):
+        key = leaf.split(".")[1]
+        assert cfg[section]["budget"][key] == before[section]["budget"][key] + 100, cfg[section]
+        return
+    lines = text.split("\n")
+    assert UPSTREAM_MARK in lines[_leaf_line(lines, section, leaf)], text
+
+
+_COMMANDS = ["build", "test", "verify", "single_test", "lint"]
+_PATHS = ["work", "wiki", "scratch", "adr", "runbooks"]
+_DEBUG = [
+    "services",
+    "budget.max_turns_total",
+    "budget.classification",
+    "budget.subagent",
+    "budget.fix_rounds",
+    "allow_prod_log_access",
+]
+
+
+def _adjacent_pairs(section: str, leaves: list[str]) -> list[tuple[str, str, str]]:
+    out = []
+    for a, b in zip(leaves, leaves[1:], strict=False):
+        out += [(section, a, b), (section, b, a)]
+    return out
+
+
+_MERGE_CASES = [
+    *_adjacent_pairs("commands", _COMMANDS),
+    *_adjacent_pairs("paths", _PATHS),
+    *_adjacent_pairs("debug", _DEBUG),
+    ("debug", "services", "allow_prod_log_access"),
+    ("debug", "allow_prod_log_access", "services"),
+]
+
+
+@pytest.fixture(scope="module")
+def content_v1(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    return _copy_content(tmp_path_factory.mktemp("content-v1") / "c")
+
+
+@pytest.mark.parametrize(
+    ("section", "local", "upstream"),
+    _MERGE_CASES,
+    ids=[f"{s}:{loc}-vs-{up}" for s, loc, up in _MERGE_CASES],
+)
+def test_c28a_three_way_update_merges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    content_v1: Path,
+    section: str,
+    local: str,
+    upstream: str,
+) -> None:
+    import copier
+
+    for key in [k for k in os.environ if k.startswith("GIT_")]:
+        monkeypatch.delenv(key)
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    for var in ["AUTHOR", "COMMITTER"]:
+        monkeypatch.setenv(f"GIT_{var}_NAME", "Kuanflow Test")
+        monkeypatch.setenv(f"GIT_{var}_EMAIL", "test@example.com")
+
+    content_v2 = _copy_content(tmp_path / "content-v2")
+    jinja = content_v2 / "templates/project/template/.kuanflow/config.yaml.jinja"
+    jinja.write_text(
+        _upstream_edit(jinja.read_text(encoding="utf-8"), section, upstream), encoding="utf-8"
+    )
+
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    _run_git(proj, "init", "-q", "-b", "main")
+    (proj / ".gitignore").write_text(".kuanflow/cache/\n", encoding="utf-8")
+    answers = {"project_name": "merge-svc", "stack": "python", "services": ["svc-a", "svc-b"]}
+    engine().render(proj, answers, version=V1, content=content_v1)
+    _run_git(proj, "add", "-A")
+    _run_git(proj, "commit", "-q", "-m", "render v1")
+
+    cfg_path = proj / ".kuanflow" / "config.yaml"
+    before = config(proj)
+    cfg_path.write_text(
+        _local_edit(cfg_path.read_text(encoding="utf-8"), section, local), encoding="utf-8"
+    )
+    _expected_local(config(proj), section, local, before)
+    _run_git(proj, "commit", "-q", "-am", "local edit")
+
+    engine().assemble_template(proj / CACHE, [(V1, content_v1), (V2, content_v2)])
+    monkeypatch.chdir(proj)
+    copier.run_update(
+        ".",
+        vcs_ref=f"v{V2}",
+        defaults=True,
+        overwrite=True,
+        conflict="inline",
+        quiet=True,
+    )
+
+    assert _run_git(proj, "ls-files", "-u") == "", _run_git(proj, "status", "--porcelain")
+    text = cfg_path.read_text(encoding="utf-8")
+    assert "<<<<<<<" not in text and ">>>>>>>" not in text, text
+    after = config(proj)
+    _expected_local(after, section, local, before)
+    _expected_upstream(text, after, section, upstream, before)
+    assert answers_file(proj)["_commit"] == f"v{V2}"

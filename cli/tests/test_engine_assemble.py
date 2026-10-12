@@ -239,6 +239,19 @@ def test_c24_unknown_template(tmp_path: Path) -> None:
         engine().assemble_template(tmp_path / "repo", [("0.1.0", src)], template="nope")
 
 
+def test_c24_unknown_template_leaves_existing_dest(tmp_path: Path) -> None:
+    src = make_source(tmp_path / "s1")
+    dest = tmp_path / "repo"
+    engine().assemble_template(dest, [("0.1.0", src)])
+    head = git(dest, "rev-parse", "HEAD")
+    write(dest, "keep.txt", "keep\n")
+    with pytest.raises(ValueError):
+        engine().assemble_template(dest, [("0.2.0", src)], template="nope")
+    assert (dest / "keep.txt").read_text(encoding="utf-8") == "keep\n"
+    assert git(dest, "rev-parse", "HEAD") == head
+    assert git(dest, "tag", "--list") == "v0.1.0"
+
+
 def test_c24_dest_content_removed(tmp_path: Path) -> None:
     src = make_source(tmp_path / "s1")
     dest = tmp_path / "repo"
@@ -285,6 +298,49 @@ def test_c24_user_global_git_config_ignored(
     dest = Path(engine().assemble_template(tmp_path / "repo", [("0.1.0", src)]))
     assert git(dest, "log", "-1", "--format=%an|%ae") == "kuanflow|kuanflow@localhost"
     assert git(dest, "describe", "--tags") == "v0.1.0"
+
+
+def _repo_state(repo: Path) -> tuple[str, str, str, str, bytes]:
+    index = (repo / ".git" / "index").read_bytes()
+    return (
+        git(repo, "rev-parse", "HEAD"),
+        git(repo, "tag", "--list"),
+        git(repo, "for-each-ref"),
+        git(repo, "status", "--porcelain", "--untracked-files=all"),
+        index,
+    )
+
+
+def test_c24a_inherited_git_env_ignored(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    victim = tmp_path / "victim"
+    write(victim, "a.txt", "a\n")
+    git(victim, "init", "-q", "-b", "main")
+    git(victim, "add", "a.txt")
+    git(victim, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "victim")
+    git(victim, "tag", "victim-tag")
+    write(victim, "staged.txt", "s\n")
+    git(victim, "add", "staged.txt")
+    before = _repo_state(victim)
+    monkeypatch.setenv("GIT_DIR", str(victim / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(victim))
+    monkeypatch.setenv("GIT_INDEX_FILE", str(victim / ".git" / "index"))
+    monkeypatch.setenv("GIT_OBJECT_DIRECTORY", str(victim / ".git" / "objects"))
+    monkeypatch.setenv("GIT_COMMON_DIR", str(victim / ".git"))
+    src = make_source(tmp_path / "s1")
+    dest = Path(engine().assemble_template(tmp_path / "repo", [("0.1.0", src), ("0.2.0", src)]))
+    for key in [
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_COMMON_DIR",
+    ]:
+        monkeypatch.delenv(key)
+    assert _repo_state(victim) == before
+    assert (dest / ".git").is_dir()
+    assert sorted(git(dest, "tag", "--list").splitlines()) == ["v0.1.0", "v0.2.0"]
+    assert git(dest, "describe", "--tags") == "v0.2.0"
+    assert "template/marker.txt" in ls_tree(dest)
 
 
 # --- C25 render ------------------------------------------------------------------------------

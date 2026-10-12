@@ -247,3 +247,22 @@ source_paths: [src/a.txt]"
   run_check "$BATS_TEST_TMPDIR/does-not-exist"
   [ "$status" -eq 2 ]
 }
+
+@test "C34a: modules are not imported from the working directory or PYTHONPATH" {
+  page_c flow "generated: true
+source_commit: $BASE
+source_paths: [src/a.txt]"
+  change src/a.txt
+  plant="$BATS_TEST_TMPDIR/plant"
+  mkdir -p "$plant"
+  marker="$BATS_TEST_TMPDIR/planted-module-ran"
+  for dir in "$BATS_TEST_TMPDIR" "$plant" "$REPO/kuan-workbench/wiki"; do
+    printf 'open(%s, "w").close()\n' "'$marker'" > "$dir/yaml.py"
+    printf 'open(%s, "w").close()\n' "'$marker'" > "$dir/re.py"
+  done
+  # cwd is $BATS_TEST_TMPDIR (setup); PYTHONPATH points at another planted dir
+  PYTHONPATH="$plant" run --separate-stderr "$SCRIPT" "$REPO"
+  [ ! -e "$marker" ] || { echo "planted module ran"; return 1; }
+  [ "$status" -eq 1 ] || { echo "status=$status out=$output err=$stderr"; return 1; }
+  [ "$output" = "STALE kuan-workbench/wiki/flow.md" ]
+}

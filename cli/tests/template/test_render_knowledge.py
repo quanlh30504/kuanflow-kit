@@ -38,6 +38,7 @@ CATEGORIES = [
 SCRIPTS = ["build-index.py", "check-frontmatter.py", "stale-wiki-check.sh"]
 TREE = {
     ".copier-answers.yml",
+    ".gitignore",
     "README.md",
     "postmortems/README.md",
     "runbooks-shared/README.md",
@@ -119,6 +120,47 @@ def test_c31_questions(copier_yml: dict[str, Any]) -> None:
 
 def test_c31_tree_is_exact(kr: Path) -> None:
     assert tree(kr) == TREE
+
+
+def _git(repo: Path, *args: str) -> str:
+    env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
+    env = {k: v for k, v in env.items() if k not in {"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"}}
+    proc = subprocess.run(
+        ["git", "-C", str(repo), *args],
+        capture_output=True,
+        text=True,
+        check=True,
+        env=env,
+        timeout=60,
+    )
+    return proc.stdout
+
+
+def test_c31a_gitignore(kr: Path) -> None:
+    lines = [ln.strip() for ln in (kr / ".gitignore").read_text(encoding="utf-8").splitlines()]
+    assert ".kuanflow/cache/" in lines, lines
+    assert "index.json" in lines, lines
+
+
+def test_c31a_cache_ignored_in_fresh_repo(tmp_path: Path) -> None:
+    engine = importlib.import_module("kuanflow_cli.engine")
+    dst = tmp_path / "kr"
+    dst.mkdir()
+    _git(dst, "init", "-q", "-b", "main")
+    engine.render(dst, {"org_name": "acme"}, template="knowledge-repo")
+    assert (dst / CACHE / ".git").is_dir()
+    write(dst, "index.json", "{}\n")
+    status = _git(dst, "status", "--porcelain", "--untracked-files=all").splitlines()
+    paths = [ln[3:] for ln in status]
+    assert paths, "rendered files should show as untracked"
+    assert not [p for p in paths if p.startswith(".kuanflow/")], paths
+    assert "index.json" not in paths, paths
+    assert ".gitignore" in paths, paths
+    # `git add -A` must not record the cache as an embedded repo (gitlink)
+    _git(dst, "add", "-A")
+    staged = _git(dst, "ls-files", "--stage").splitlines()
+    assert not [ln for ln in staged if ln.startswith("160000")], staged
+    assert not [ln for ln in staged if "\t.kuanflow/" in ln], staged
 
 
 def test_c31_answers_file(kr: Path) -> None:
@@ -324,6 +366,10 @@ def test_c32_missing_field(kr: Path, tmp_path: Path, field: str) -> None:
         ("signatures", [1]),
         ("status", "final"),
         ("status", "draft | approved"),
+        ("status", "published"),
+        ("status", "Approved"),
+        ("status", "Draft"),
+        ("status", " approved"),
     ],
 )
 def test_c32_invalid_value(kr: Path, tmp_path: Path, field: str, value: Any) -> None:
