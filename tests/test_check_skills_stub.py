@@ -72,3 +72,13 @@ def test_one_line_per_violation(tmp_path: Path) -> None:
     assert proc.returncode == 1
     lines = [ln for ln in proc.stderr.splitlines() if ln.strip()]
     assert len(lines) >= 2
+
+
+# --- Fix round 1: C5a ---------------------------------------------------------------------------
+
+
+def test_missing_description_key(tmp_path: Path) -> None:
+    write_skill(tmp_path, "demo", "---\nname: demo\n---\n\nBody\n")
+    proc = run(str(tmp_path))
+    assert proc.returncode == 1
+    assert proc.stderr.strip()
