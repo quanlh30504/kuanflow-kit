@@ -90,13 +90,17 @@ C10. `kuanflow` with no arguments prints help; exit code not contracted in P1 (F
 | ID | Role | Files | Status |
 |---|---|---|---|
 | FX1.0 [x] 66c038a | Test Engineer | `cli/tests/test_semver_pep440.py`, `cli/tests/test_hatch_build.py`, `tests/test_tooling_contracts.py`, additions to `tests/test_check_versions.py`, `tests/test_check_skills_stub.py` | [ ] |
-| FX1.1 | CLI Engineer | `cli/semver_pep440.py`, `cli/hatch_build.py`, `cli/pyproject.toml` (+hatchling dev), `cli/uv.lock`, `docs/adr/0001-foundations.md` (fix F4) | [ ] |
-| FX1.2 | Release/CI | `tests/check_versions.py` (use C9 module, C4a), `tests/check_skills.py` (C5a), `Makefile` (C7a), `.github/workflows/ci.yml` (C7a) | [ ] |
+| FX1.1 [x] 704c66a | CLI Engineer | `cli/semver_pep440.py`, `cli/hatch_build.py`, `cli/pyproject.toml` (+hatchling dev), `cli/uv.lock`, `docs/adr/0001-foundations.md` (fix F4) | [ ] |
+| FX1.2 [x] 20b1ee4 | Release/CI | `tests/check_versions.py` (use C9 module, C4a), `tests/check_skills.py` (C5a), `Makefile` (C7a), `.github/workflows/ci.yml` (C7a) | [ ] |
 
 ## Verify (phase exit)
 `make verify` exit 0; RED run of T1.0 recorded below; ADR-0001/0002 written.
 
 ## Evidence log
+- GREEN (fix round 1, 20b1ee4): `make verify` exit 0 — `508 passed`, bats `ok 1..3`, both checkers silent.
+  Also: pytest on Python 3.11 (`UV_PYTHON=3.11 … --isolated`) → `508 passed`; `uv build` sdist ships
+  `semver_pep440.py` + `VERSION`; F5 trap (stray `VERSION=9.9.9` above unpacked sdist) → wheel `0.1.0.dev0`.
+  C5a needed no code change (`check_skills.py` already flagged a missing `description` key).
 - RED (T1.0, before implementation): `uvx --with typer --with pyyaml pytest -q cli/tests tests` →
   `70 failed, 6 passed, 1 skipped`; `bats tests/bats` → `not ok 1..3`. 77 pytest + 3 bats tests.
 
@@ -112,6 +116,7 @@ C10. `kuanflow` with no arguments prints help; exit code not contracted in P1 (F
 - All P1 tasks merged; GREEN `make verify` exit 0 (77 passed, bats 3/3) at 5612e3a. Review FAIL (6 rows).
 - Fix round 1: FX1.0 tests merged. RED: `22 failed, 212 passed, 274 errors` (cli/semver_pep440.py missing, hatchling not
   in dev group, no `--locked`, no CI matrix, checker accepts bare `-rc/-alpha/-beta/-a/-b`, multi-line VERSION, non-object JSON).
-- NEXT (on resume): spawn FX1.1 (CLI Eng) ∥ FX1.2 (Release/CI) per the Fix-round-1 table; note test assumptions:
-  `--locked` literally on every `uv run` line; hatch_build finds `semver_pep440` next to its own file.
-  Then make verify → re-review → DoD → tag v0.1.0-dev → Gate P1 (ask Q-26, Q-27, D-P1-2).
+- FX1.1 + FX1.2 done inline by the coordinator (small, disjoint; no worktrees). GREEN above.
+- NEXT (on resume): re-review (Adversarial Reviewer) of `c1d0c78..HEAD` against review.md F1–F10 → DoD →
+  tag v0.1.0-dev → Gate P1 (ask Q-26, Q-27, D-P1-2). Open low item: F3 (`cli/tests/test_version.py`
+  tautological helper) is Test Engineer scope, still present.
