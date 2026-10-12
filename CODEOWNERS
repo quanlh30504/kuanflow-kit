@@ -1,0 +1,7 @@
+# CODEOWNERS — replace <org> with your organisation before enabling branch protection.
+*                                       @<org>/kuanflow-maintainers
+plugins/kuanflow/skills/fintech-review/ @<org>/payment-leads
+plugins/kuanflow/skills/debug-incident/ @<org>/sre-leads
+plugins/kuanflow/hooks/                 @<org>/kuanflow-maintainers @<org>/security
+plugins/kuanflow/scripts/               @<org>/kuanflow-maintainers @<org>/security
+templates/                              @<org>/kuanflow-maintainers
