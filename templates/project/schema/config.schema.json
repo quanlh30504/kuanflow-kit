@@ -1,0 +1,262 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Kuanflow project config (.kuanflow/config.yaml)",
+  "description": "schema_version 1. Sections owned by the project (project, commands, debug, knowledge, integrations) accept extra keys; Kuanflow-owned sections do not. Top-level extensions must start with 'x-'.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "kuanflow",
+    "project",
+    "commands",
+    "paths",
+    "artifacts",
+    "protected_paths",
+    "risk",
+    "workflows"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "kuanflow": {
+      "type": "object",
+      "required": [
+        "min_version"
+      ],
+      "properties": {
+        "min_version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?$",
+          "description": "Minimum Kuanflow version (SemVer)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "project": {
+      "type": "object",
+      "required": [
+        "name",
+        "stack"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stack": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "commands": {
+      "type": "object",
+      "required": [
+        "build",
+        "test",
+        "verify"
+      ],
+      "properties": {
+        "build": {
+          "type": "string",
+          "minLength": 1
+        },
+        "test": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verify": {
+          "type": "string",
+          "minLength": 1
+        },
+        "single_test": {
+          "type": "string",
+          "description": "{test} is replaced by the test name."
+        },
+        "lint": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "paths": {
+      "type": "object",
+      "required": [
+        "work",
+        "wiki",
+        "scratch",
+        "adr",
+        "runbooks"
+      ],
+      "properties": {
+        "work": {
+          "type": "string",
+          "minLength": 1
+        },
+        "wiki": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scratch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "adr": {
+          "type": "string",
+          "minLength": 1
+        },
+        "runbooks": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "artifacts": {
+      "type": "object",
+      "required": [
+        "commit"
+      ],
+      "properties": {
+        "commit": {
+          "enum": [
+            "minimal",
+            "full",
+            "none"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "work": {
+      "type": "object",
+      "properties": {
+        "ticket_pattern": {
+          "type": "string",
+          "description": "Regex for the ticket key in a branch name."
+        }
+      },
+      "additionalProperties": false
+    },
+    "protected_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Globs agents must not modify."
+    },
+    "risk": {
+      "type": "object",
+      "required": [
+        "fintech"
+      ],
+      "properties": {
+        "fintech": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "workflows": {
+      "type": "object",
+      "required": [
+        "enabled"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "w0",
+              "w1",
+              "w2",
+              "w3",
+              "w4",
+              "w5",
+              "w6",
+              "w7",
+              "w8",
+              "w9",
+              "w10"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "debug": {
+      "type": "object",
+      "properties": {
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "budget": {
+          "type": "object",
+          "properties": {
+            "max_turns_total": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "classification": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "subagent": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "fix_rounds": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "allow_prod_log_access": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "knowledge": {
+      "type": "object",
+      "properties": {
+        "repo": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "integrations": {
+      "type": "object",
+      "properties": {
+        "jira_project_key": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "guard": {
+      "type": "object",
+      "properties": {
+        "extra_block_patterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Extra regexes that guard-bash.sh blocks."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "patternProperties": {
+    "^x-": {}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,17 @@
+# Copier template for the organisation-wide knowledge repo (PKG §6.6, Q-21).
+# Rendered by the Kuanflow CLI: `kuanflow init --here --template knowledge-repo`.
+# Authoring rules: docs/adr/0002-copier-engine.md (no tasks, migrations or Jinja extensions).
+_min_copier_version: "9.18.2"
+_subdirectory: template
+_answers_file: .copier-answers.yml
+_templates_suffix: .jinja
+
+org_name:
+  type: str
+  default: example-org
+  help: Organisation name, shown in the README
+
+kuanflow_version:
+  type: str
+  default: ""
+  help: Filled by the Kuanflow CLI; do not answer by hand

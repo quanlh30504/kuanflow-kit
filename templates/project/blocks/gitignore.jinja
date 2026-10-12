@@ -1,0 +1,14 @@
+# Kuanflow — engine
+.kuanflow/config.local.yaml
+.kuanflow/state.json
+.kuanflow/scratch/
+.kuanflow/cache/
+# Kuanflow — output (artifacts.commit = {{ artifacts_commit }})
+{% if artifacts_commit == "minimal" -%}
+kuan-workbench/work/*/questions.md
+kuan-workbench/work/*/research.md
+kuan-workbench/work/*/options.md
+{% elif artifacts_commit == "none" -%}
+kuan-workbench/
+{% endif -%}
+CLAUDE.local.md

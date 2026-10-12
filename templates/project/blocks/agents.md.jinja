@@ -1,0 +1,10 @@
+## AI workflow
+- Config: `.kuanflow/config.yaml` (build/test/verify commands, protected paths).
+- Artifacts: `kuan-workbench/work/<TICKET>-<slug>/` — questions.md, spec.md, research.md, plan.md, review.md; drafts/ for ADR/runbook drafts.
+- Temporary or sensitive data (logs, context.json) goes to `.kuanflow/scratch/<work-id>/` only — never into `kuan-workbench/`.
+- Resolve the current work item: env KUANFLOW_WORK → ticket key in branch name → `.kuanflow/state.json` → ask.
+- `docs/` holds human-approved docs only. Never write there directly; drafts are moved by `kuanflow promote` after human review.
+- Follow plan.md phase by phase. Never claim done without running `verify` command (see config).
+- Before commit/PR: `/kuanflow:w8-verify <ticket>`.
+- No slash commands in your agent? Run the `verify-agent-output` skill (W8) instead.
+- Never modify files under protected paths; never weaken or skip existing tests.

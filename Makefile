@@ -9,6 +9,7 @@ verify:
 	$(UV_RUN) pytest -q
 	bats tests/bats
 	$(UV_RUN) python tests/check_skills.py plugins/kuanflow
+	$(UV_RUN) python tests/check_schema.py
 	$(UV_RUN) python tests/check_versions.py
 
 test:

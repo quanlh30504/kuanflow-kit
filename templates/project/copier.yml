@@ -1,0 +1,98 @@
+# Kuanflow project template. Rendered by the `kuanflow` CLI through Copier (ADR-0002);
+# do not run `copier` against this directory directly.
+# No _tasks, _migrations or _jinja_extensions: renders run with unsafe=False, and
+# migrations live in the CLI.
+_min_copier_version: "9.18.2"
+_subdirectory: template
+_answers_file: .copier-answers.yml
+_templates_suffix: .jinja
+
+# Project-owned files: created on first render, never overwritten on update.
+_skip_if_exists:
+  - docs/adr/*.md
+  - docs/runbooks/*.md
+  - kuan-workbench/**
+  - .kuanflow/templates/**
+  - .kuanflow/config.local.yaml
+  - orca.yaml
+
+project_name:
+  type: str
+  help: Service or project name (e.g. order-service)
+
+stack:
+  type: str
+  help: Main stack
+  choices: [java-maven, java-gradle, node, python, other]
+  default: java-maven
+
+build_cmd:
+  type: str
+  help: Build command
+  default: "{% if stack == 'java-maven' %}./mvnw -q -DskipTests package{% elif stack == 'java-gradle' %}./gradlew assemble{% else %}make build{% endif %}"
+
+test_cmd:
+  type: str
+  help: Test command
+  default: "{% if stack == 'java-maven' %}./mvnw -q test{% elif stack == 'java-gradle' %}./gradlew test{% else %}make test{% endif %}"
+
+verify_cmd:
+  type: str
+  help: Command that must pass before anything is called "done"
+  default: "{% if stack == 'java-maven' %}./mvnw -q verify{% elif stack == 'java-gradle' %}./gradlew check{% else %}make verify{% endif %}"
+
+single_test_cmd:
+  type: str
+  help: Command that runs one test; {test} is replaced by the test name
+  default: "{% if stack == 'java-maven' %}./mvnw -q -Dtest={test} test{% elif stack == 'java-gradle' %}./gradlew test --tests {test}{% else %}make test TEST={test}{% endif %}"
+
+lint_cmd:
+  type: str
+  help: Lint / format check command
+  default: "{% if stack == 'java-maven' %}./mvnw -q spotless:check{% elif stack == 'java-gradle' %}./gradlew spotlessCheck{% else %}make lint{% endif %}"
+
+ticket_pattern:
+  type: str
+  help: Regex that finds the ticket key in a branch name
+  default: "[A-Z][A-Z0-9]+-[0-9]+"
+
+fintech:
+  type: bool
+  help: Does the project handle money, orders, accounts or reconciliation?
+  default: true
+
+protected_paths:
+  type: yaml
+  help: Globs that agents must not modify
+  default: ["src/main/resources/db/migration/**", "**/legacy/**"]
+
+services:
+  type: yaml
+  help: Related services (used by the debug harness)
+  default: []
+
+artifacts_commit:
+  type: str
+  help: Which work artifacts are committed to git
+  choices: [minimal, full, none]
+  default: minimal
+
+use_orca:
+  type: bool
+  help: Generate orca.yaml for Orca worktrees?
+  default: true
+
+knowledge_repo:
+  type: str
+  help: URL of the engineering-knowledge repo (leave empty if there is none yet)
+  default: ""
+
+jira_project_key:
+  type: str
+  help: Jira project key (e.g. ORD)
+  default: ""
+
+kuanflow_version:
+  type: str
+  help: Minimum Kuanflow version this project requires (filled in by the CLI)
+  default: ""

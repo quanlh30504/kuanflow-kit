@@ -35,9 +35,10 @@ dev = [
 packages = ["cli/src/kuanflow_cli"]
 
 [tool.hatch.build.targets.wheel.force-include]
-# Plugin + templates ship inside the wheel; the runtime locator reads kuanflow_cli/_content.
+# Plugin, templates and VERSION ship in the wheel; the runtime locator reads kuanflow_cli/_content.
 "plugins/kuanflow" = "kuanflow_cli/_content/plugins/kuanflow"
 "templates" = "kuanflow_cli/_content/templates"
+"VERSION" = "kuanflow_cli/_content/VERSION"
 
 [tool.hatch.build.targets.sdist]
 include = ["cli/src/kuanflow_cli", "plugins/kuanflow", "templates", "hatch_build.py", "VERSION", "LICENSE"]
