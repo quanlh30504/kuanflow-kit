@@ -27,6 +27,7 @@ RM_TARGETS = {
     "${HOME}/*", ".", "./", "./*", "..", "../", "../*",
 }
 ENV_READERS = {"cat", "less", "more", "head", "tail", "cp", "scp"}
+MAX_DEPTH = 3
 
 
 def block(reason):
@@ -56,8 +57,12 @@ def find_root():
     return os.getcwd()
 
 
-def segments(cmd):
-    """Split a command line into simple commands (lists of words), respecting quotes."""
+def segments(cmd, depth=0):
+    """Split a command line into simple commands (lists of words), respecting quotes.
+
+    A word containing whitespace (the argument of `bash -c`, `eval`, `ssh host "..."`) is
+    also split as a command line of its own, up to MAX_DEPTH levels.
+    """
     result = []
     for line in cmd.splitlines():
         try:
@@ -76,6 +81,11 @@ def segments(cmd):
                 current.append(w)
         if current:
             result.append(current)
+    if depth < MAX_DEPTH:
+        for words in list(result):
+            for w in words:
+                if any(c.isspace() for c in w):
+                    result += segments(w, depth + 1)
     return result
 
 
@@ -137,7 +147,8 @@ def check_rm(words):
                 flags.update(a[1:].lower())
             else:
                 targets.append(a)
-        if {"r", "f"} <= flags and any(t in RM_TARGETS for t in targets):
+        # Recursive is enough: -f only skips prompts on write-protected files (C13b).
+        if "r" in flags and any(t in RM_TARGETS for t in targets):
             block("destructive rm")
 
 
