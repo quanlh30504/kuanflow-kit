@@ -69,11 +69,13 @@ py_ctx() {
 @test "writes nothing outside the scratch work dir" {
   local before after
   before="$(cd "$BATS_TEST_TMPDIR" && find . -type f | sort)"
-  run --separate-stderr "$COLLECT" --id INC-9 --log "$INPUTS/app.log"
+  # plain `run`: --separate-stderr would add its own temp file under BATS_TEST_TMPDIR
+  run "$COLLECT" --id INC-9 --log "$INPUTS/app.log"
   [ "$status" -eq 0 ]
   after="$(cd "$BATS_TEST_TMPDIR" && find . -type f | sort)"
   local added
   added="$(comm -13 <(printf '%s\n' "$before") <(printf '%s\n' "$after"))"
+  echo "added: $added"
   [ "$added" = "./project/.kuanflow/scratch/INC-9/context.json" ]
 }
 

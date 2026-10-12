@@ -226,9 +226,10 @@ def test_c17d_fintech_gating(name: str) -> None:
 )
 def test_c17e_project_template_override(name: str, file: str) -> None:
     text = skill_md(name)
-    override, own = text.find(f".kuanflow/templates/{file}"), text.find(f"templates/{file}`")
+    override, own = text.find(f"`.kuanflow/templates/{file}`"), text.find(f"`templates/{file}`")
     assert override >= 0, "project override path not mentioned"
     assert own >= 0, "own template not mentioned"
+    assert override < own, "the project override must be checked before the skill's own template"
 
 
 def test_spec_template_shape() -> None:
