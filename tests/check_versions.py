@@ -7,27 +7,32 @@ Exit 0 when all present sources agree, 1 otherwise (one stderr line per problem)
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
-import re
 import sys
 import tomllib
 from pathlib import Path
+from types import ModuleType
 
-# Official SemVer 2.0 regex (semver.org), without a leading "v".
-SEMVER_RE = re.compile(
-    r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
-    r"(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)"
-    r"(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?"
-    r"(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"
-)
-
-# SemVer prerelease label -> PEP 440 suffix.
-_PRE_LABELS = {"dev": ".dev", "alpha": "a", "a": "a", "beta": "b", "b": "b", "rc": "rc"}
-_PRE_RE = re.compile(r"^(dev|alpha|a|beta|b|rc)(?:\.(0|[1-9]\d*))?$")
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 PLUGIN_JSON = Path("plugins/kuanflow/.claude-plugin/plugin.json")
 MARKETPLACE_JSON = Path(".claude-plugin/marketplace.json")
 CLI_PYPROJECT = Path("cli/pyproject.toml")
+
+
+def _load_semver() -> ModuleType:
+    # The one SemVer -> PEP 440 converter (contract C9), shared with cli/hatch_build.py.
+    path = REPO_ROOT / "cli" / "semver_pep440.py"
+    spec = importlib.util.spec_from_file_location("_kuanflow_semver_pep440", path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+semver_pep440 = _load_semver()
 
 
 class VersionError(ValueError):
@@ -35,26 +40,16 @@ class VersionError(ValueError):
 
 
 def semver_to_pep440(version: str) -> str:
-    """Map SemVer to PEP 440, e.g. 0.1.0-dev -> 0.1.0.dev0, 1.2.0-rc.1 -> 1.2.0rc1."""
-    m = SEMVER_RE.match(version)
-    if not m:
-        raise VersionError(f"not a valid SemVer: {version!r}")
-    if m.group(5):
-        raise VersionError(f"build metadata is not supported: {version!r}")
-    release = ".".join(m.group(i) for i in (1, 2, 3))
-    pre = m.group(4)
-    if pre is None:
-        return release
-    pm = _PRE_RE.match(pre)
-    if not pm:
-        raise VersionError(f"unsupported prerelease form {pre!r} in {version!r}")
-    return f"{release}{_PRE_LABELS[pm.group(1)]}{pm.group(2) or '0'}"
+    try:
+        return semver_pep440.to_pep440(version)
+    except ValueError as exc:
+        raise VersionError(str(exc)) from exc
 
 
 def _normalise_pep440(value: str) -> str:
     # A static pyproject version may be written in SemVer or PEP 440 form.
     value = value.strip()
-    if SEMVER_RE.match(value):
+    if semver_pep440.is_semver(value):
         return semver_to_pep440(value)
     return value.lower()
 
@@ -63,25 +58,30 @@ def read_version(root: Path) -> str:
     path = root / "VERSION"
     if not path.is_file():
         raise VersionError(f"VERSION: file not found at {path}")
-    lines = path.read_text(encoding="utf-8").splitlines()
-    version = lines[0].strip() if lines else ""
-    if not SEMVER_RE.match(version):
+    text = path.read_text(encoding="utf-8")
+    version = text[:-1] if text.endswith("\n") else text
+    if not version or "\n" in version or "\r" in version:
+        raise VersionError("VERSION: must be exactly one line")
+    if not semver_pep440.is_semver(version):
         raise VersionError(f"VERSION: not a valid SemVer: {version!r}")
     return version
 
 
-def _load_json(path: Path) -> dict:
+def _load_json(path: Path, rel: Path) -> dict:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise VersionError(f"{path}: cannot read: {exc}") from exc
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise VersionError(f"{rel}: cannot read: {exc}") from exc
+    if not isinstance(data, dict):
+        raise VersionError(f"{rel}: top level must be a JSON object, got {type(data).__name__}")
+    return data
 
 
 def check_plugin(root: Path, version: str) -> list[str]:
     path = root / PLUGIN_JSON
     if not path.is_file():
         return []
-    found = _load_json(path).get("version")
+    found = _load_json(path, PLUGIN_JSON).get("version")
     if found != version:
         return [f"{PLUGIN_JSON}: version {found!r} != VERSION {version!r}"]
     return []
@@ -91,12 +91,15 @@ def check_marketplace(root: Path, version: str) -> list[str]:
     path = root / MARKETPLACE_JSON
     if not path.is_file():
         return []
-    data = _load_json(path)
+    data = _load_json(path, MARKETPLACE_JSON)
     errors = []
-    meta = (data.get("metadata") or {}).get("version")
+    metadata = data.get("metadata")
+    meta = metadata.get("version") if isinstance(metadata, dict) else None
     if meta != version:
         errors.append(f"{MARKETPLACE_JSON}: metadata.version {meta!r} != VERSION {version!r}")
-    entries = [p for p in data.get("plugins") or [] if p.get("name") == "kuanflow"]
+    plugins = data.get("plugins")
+    plugins = plugins if isinstance(plugins, list) else []
+    entries = [p for p in plugins if isinstance(p, dict) and p.get("name") == "kuanflow"]
     if not entries:
         errors.append(f"{MARKETPLACE_JSON}: no plugins[] entry named 'kuanflow'")
     for entry in entries:
@@ -117,7 +120,7 @@ def check_cli(root: Path, version: str) -> list[str]:
     except tomllib.TOMLDecodeError as exc:
         return [f"{CLI_PYPROJECT}: invalid TOML: {exc}"]
     if "version" in project.get("dynamic", []):
-        return []  # derived from VERSION at build time: consistent by construction
+        return []  # hatch_build.py derives it from VERSION via the same converter
     static = project.get("version")
     if static is None:
         return [f"{CLI_PYPROJECT}: [project] has neither a static nor a dynamic version"]
@@ -160,9 +163,7 @@ def run(root: Path, tag: str | None = None) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Check that all version sources agree.")
-    parser.add_argument(
-        "--root", type=Path, default=Path(__file__).resolve().parents[1], help="repo root"
-    )
+    parser.add_argument("--root", type=Path, default=REPO_ROOT, help="repo root")
     parser.add_argument("--tag", help="release tag that must equal 'v' + VERSION")
     args = parser.parse_args(argv)
     errors = run(args.root, args.tag)

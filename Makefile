@@ -1,4 +1,4 @@
-UV_RUN := uv run --project cli
+UV_RUN := uv run --locked --project cli
 
 .PHONY: verify test lint fmt
 
